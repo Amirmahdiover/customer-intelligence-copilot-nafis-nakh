@@ -1,4 +1,6 @@
-const API_BASE = import.meta.env.VITE_API_URL ?? '/api'
+const API_BASE =
+  import.meta.env.VITE_API_URL ||
+  'https://customer-intelligence-copilot-nafis-nakh.onrender.com'
 
 export class ApiError extends Error {
   status: number
@@ -14,7 +16,7 @@ export async function apiFetch<T>(
   path: string,
   params?: Record<string, string | number | undefined>,
 ): Promise<T> {
-  const url = new URL(`${API_BASE}${path}`, window.location.origin)
+  const url = new URL(`${API_BASE}${path}`)
 
   if (params) {
     for (const [key, value] of Object.entries(params)) {
@@ -28,12 +30,17 @@ export async function apiFetch<T>(
 
   if (!response.ok) {
     let message = `HTTP ${response.status}`
+
     try {
       const body = (await response.json()) as { detail?: string }
-      if (body.detail) message = body.detail
+
+      if (body.detail) {
+        message = body.detail
+      }
     } catch {
       // ignore parse errors
     }
+
     throw new ApiError(response.status, message)
   }
 
