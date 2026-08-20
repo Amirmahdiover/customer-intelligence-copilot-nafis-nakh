@@ -9,12 +9,12 @@ aggregation or explicit rule — no ML/statistical model is used anywhere.
 """
 from fastapi import FastAPI, HTTPException, Path
 
-from app.complaint_store import complaint_store, get_complaint_store
-from app.crm_store import crm_store, get_crm_store
-from app.customer_header_store import customer_header_store, get_customer_header_store
-from app.data_loader import SNAPSHOT_DATE, store
-from app.rules import risk_breakdown
-from app.schemas import (
+from backend.app.complaint_store import complaint_store, get_complaint_store
+from backend.app.crm_store import crm_store, get_crm_store
+from backend.app.customer_header_store import customer_header_store, get_customer_header_store
+from backend.app.data_loader import SNAPSHOT_DATE, store
+from backend.app.rules import risk_breakdown
+from backend.app.schemas import (
     ActionResponse,
     ComplaintsCountResponse,
     CrmInteractionsListResponse,
