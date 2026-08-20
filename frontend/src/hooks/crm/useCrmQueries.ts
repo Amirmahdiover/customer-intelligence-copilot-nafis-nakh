@@ -7,8 +7,11 @@ import {
   getCustomerComplaintsCount,
   getCustomerCrm,
   getCustomerCrmInteractions,
+  getCustomerFinancial,
   getCustomerInsights,
+  getCustomerNotDueInvoices,
   getCustomerOrders,
+  getCustomerReturnedChecks,
   getCustomers,
   getGlobalInsights,
 } from '@/services/crm/crm.service'
@@ -72,6 +75,30 @@ export function useCustomerCrmInteractions(id: string, enabled = true) {
   return useQuery({
     queryKey: ['crm', 'crm-interactions', id],
     queryFn: () => getCustomerCrmInteractions(id),
+    enabled: !!id && enabled,
+  })
+}
+
+export function useCustomerFinancial(id: string) {
+  return useQuery({
+    queryKey: ['crm', 'financial', id],
+    queryFn: () => getCustomerFinancial(id),
+    enabled: !!id,
+  })
+}
+
+export function useCustomerNotDueInvoices(id: string, enabled = true) {
+  return useQuery({
+    queryKey: ['crm', 'financial', id, 'not-due'],
+    queryFn: () => getCustomerNotDueInvoices(id),
+    enabled: !!id && enabled,
+  })
+}
+
+export function useCustomerReturnedChecks(id: string, enabled = true) {
+  return useQuery({
+    queryKey: ['crm', 'financial', id, 'returned-checks'],
+    queryFn: () => getCustomerReturnedChecks(id),
     enabled: !!id && enabled,
   })
 }

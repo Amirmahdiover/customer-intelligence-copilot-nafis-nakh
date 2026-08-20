@@ -182,6 +182,63 @@ export interface ApiCustomerComplaintsResponse {
   complaints: ApiComplaintDetail[]
 }
 
+export type ApiCreditStatus = 'safe' | 'warning' | 'critical' | 'over_limit' | 'unknown'
+
+export interface ApiNotDueInvoicesSummary {
+  count: number
+}
+
+export interface ApiReturnedChecksSummary {
+  has_returned_check: boolean
+  count: number
+  last_date?: string | null
+}
+
+export interface ApiCreditSummary {
+  limit?: number | null
+  used_percent?: number | null
+  remaining?: number | null
+  status: ApiCreditStatus
+}
+
+export interface ApiDelayCostSummary {
+  amount: number
+  annual_financing_rate: number
+}
+
+export interface ApiCustomerFinancialResponse {
+  customer_id: string
+  outstanding_balance: number
+  not_due_invoices: ApiNotDueInvoicesSummary
+  returned_checks: ApiReturnedChecksSummary
+  credit: ApiCreditSummary
+  delay_cost: ApiDelayCostSummary
+}
+
+export interface ApiNotDueInvoiceItem {
+  invoice_id?: string | null
+  invoice_total: number
+  amount_collected: number
+  outstanding_balance: number
+  due_date?: string | null
+}
+
+export interface ApiNotDueInvoicesResponse {
+  customer_id: string
+  count: number
+  invoices: ApiNotDueInvoiceItem[]
+}
+
+export interface ApiReturnedCheckItem {
+  date?: string | null
+}
+
+export interface ApiReturnedChecksResponse {
+  customer_id: string
+  count: number
+  checks: ApiReturnedCheckItem[]
+}
+
 /** @deprecated legacy analytics sheet shape */
 export interface ApiComplaintRecord {
   Complaint_ID: string

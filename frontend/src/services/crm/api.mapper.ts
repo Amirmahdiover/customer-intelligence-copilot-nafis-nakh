@@ -5,9 +5,14 @@ import type {
   ApiComplaintRecord,
   ApiCrmInteractionItem,
   ApiCrmLatestResponse,
+  ApiCustomerFinancialResponse,
   ApiCustomerProfile,
   ApiCustomerSummary,
   ApiKpiResponse,
+  ApiNotDueInvoiceItem,
+  ApiNotDueInvoicesResponse,
+  ApiReturnedCheckItem,
+  ApiReturnedChecksResponse,
   ApiRiskFactor,
   ApiRiskLevel,
   ApiRiskResponse,
@@ -22,14 +27,17 @@ import type {
   CrmInteraction,
   CrmLatest,
   Customer,
+  CustomerFinancial,
   CustomerRisk,
   CustomerStatus,
   Insight,
   InsightSeverity,
+  NotDueInvoice,
   Order,
   OrderStatus,
   PaymentStatus,
   RecommendedAction,
+  ReturnedCheck,
   RiskLevel,
 } from '@/types/crm'
 
@@ -396,6 +404,53 @@ export function mapCrmInteraction(record: ApiCrmInteractionItem): CrmInteraction
     updatedAt: record.updated_at ?? null,
     urgency: record.urgency ?? null,
   }
+}
+
+export function mapCustomerFinancial(
+  response: ApiCustomerFinancialResponse,
+): CustomerFinancial {
+  return {
+    customerId: response.customer_id,
+    outstandingBalance: response.outstanding_balance,
+    notDueInvoiceCount: response.not_due_invoices.count,
+    hasReturnedCheck: response.returned_checks.has_returned_check,
+    returnedCheckCount: response.returned_checks.count,
+    lastReturnedCheckDate: response.returned_checks.last_date ?? null,
+    creditLimit: response.credit.limit ?? null,
+    creditUsedPercent: response.credit.used_percent ?? null,
+    creditRemaining: response.credit.remaining ?? null,
+    creditStatus: response.credit.status,
+    delayCost: response.delay_cost.amount,
+    annualFinancingRate: response.delay_cost.annual_financing_rate,
+  }
+}
+
+export function mapNotDueInvoice(record: ApiNotDueInvoiceItem): NotDueInvoice {
+  return {
+    invoiceId: record.invoice_id ?? null,
+    invoiceTotal: record.invoice_total,
+    amountCollected: record.amount_collected,
+    outstandingBalance: record.outstanding_balance,
+    dueDate: record.due_date ?? null,
+  }
+}
+
+export function mapNotDueInvoices(
+  response: ApiNotDueInvoicesResponse,
+): NotDueInvoice[] {
+  return response.invoices.map(mapNotDueInvoice)
+}
+
+export function mapReturnedCheck(record: ApiReturnedCheckItem): ReturnedCheck {
+  return {
+    date: record.date ?? null,
+  }
+}
+
+export function mapReturnedChecks(
+  response: ApiReturnedChecksResponse,
+): ReturnedCheck[] {
+  return response.checks.map(mapReturnedCheck)
 }
 
 /** @deprecated legacy mapper */
