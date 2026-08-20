@@ -1,4 +1,9 @@
 export type CustomerStatus = 'healthy' | 'watch' | 'high-risk'
+export type ValueTier =
+  | 'شریک طلایی'
+  | 'مشتری پایدار'
+  | 'مشتری پرچالش'
+  | 'مشتری قرمز'
 export type AccountStatus = 'فعال' | 'غیرفعال' | ''
 export type RiskLevel = 'low' | 'medium' | 'high'
 export type PaymentStatus = 'paid' | 'pending' | 'overdue'
@@ -77,6 +82,8 @@ export interface Customer {
   revenueTrend: RevenueTrendPoint[]
   payment: PaymentSummary
   lastActivityDate: string
+  valueScore?: number | null
+  valueTier?: ValueTier | null
 }
 
 export interface Order {
@@ -166,6 +173,34 @@ export interface RecommendedAction {
   reason: string
   priority: ActionPriority
   type: ActionType
+}
+
+export interface BestOfferItem {
+  offerType: string
+  offerReason: string
+  productFamily: string | null
+  discountPct: number
+  validityDays: number
+  acceptProbability: number
+  businessScore: number
+}
+
+export interface BestOffer {
+  customerId: string
+  method: 'ml_offer_accept'
+  best: BestOfferItem
+  alternatives: BestOfferItem[]
+}
+
+export type ChurnRiskLevelFa = 'پایین' | 'متوسط' | 'بالا'
+
+export interface CustomerChurn {
+  customerId: string
+  method: 'ml_churn'
+  churnProbability: number
+  churnPrediction: number
+  riskLevel: ChurnRiskLevelFa
+  snapshotDate: string | null
 }
 
 export interface CrmOverview {

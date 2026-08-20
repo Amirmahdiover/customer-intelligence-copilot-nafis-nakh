@@ -11,6 +11,7 @@ import { ACCOUNT_STATUS_LABELS, CUSTOMER_STATUS_LABELS } from '@/lib/constants'
 import { formatCustomerIdWithStatus } from '@/lib/customerInfo'
 import { formatRelativeDate, getInitials } from '@/lib/formatters'
 import { useToast } from '@/components/crm/shared/Toast'
+import { ValueTierBadge } from '@/components/crm/shared/ValueTierBadge'
 
 interface CustomerHeaderProps {
   customerId: string
@@ -48,6 +49,13 @@ export function CustomerHeader({ customerId }: CustomerHeaderProps) {
               <h1 className="text-[1.35rem] font-bold text-card-foreground" dir="ltr">
                 {formatCustomerIdWithStatus(customer.code, customer.accountStatus)}
               </h1>
+              <div className="mt-1 flex flex-wrap items-center gap-2">
+                <ValueTierBadge
+                  score={customer.valueScore}
+                  tier={customer.valueTier}
+                  className="mt-0"
+                />
+              </div>
               <p className="mt-0.5 text-sm text-muted-foreground">
                 {customer.email !== '—' && customer.email}
                 {customer.email !== '—' && customer.phone !== '—' && ' · '}

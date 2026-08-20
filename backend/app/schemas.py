@@ -21,6 +21,7 @@ RFMSegment = Literal[
 ]
 RiskLevel = Literal["Low", "Medium", "High", "Critical", "Not Yet Active"]
 MarginConfidence = Literal["High", "Medium", "Low", "Unknown"]
+ValueTier = Literal["شریک طلایی", "مشتری پایدار", "مشتری پرچالش", "مشتری قرمز"]
 
 
 class ErrorResponse(BaseModel):
@@ -427,6 +428,70 @@ class ActionResponse(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# /customers/{id}/offers/best — ML offer acceptance
+# ---------------------------------------------------------------------------
+
+class OfferRecommendation(BaseModel):
+    Offer_Type: str = Field(..., description="Commercial offer type (قیمتی / حجمی / مدت‌دار).")
+    Offer_Reason: str = Field(..., description="Business reason for the offer.")
+    Product_Family: Optional[str] = Field(None, description="Suggested product family for the offer context.")
+    Offer_Discount_Pct: float = Field(..., description="Recommended discount as a fraction (0.05 = 5%).")
+    Validity_Days: int = Field(..., description="Suggested offer validity window in days.")
+    accept_probability: float = Field(..., description="Calibrated P(accept) from the ML model.")
+    business_score: float = Field(
+        ...,
+        description="P(accept) * (1 - discount); balances acceptance vs margin giveaway.",
+    )
+
+
+class BestOfferResponse(BaseModel):
+    Customer_ID: str
+    method: Literal["ml_offer_accept"] = "ml_offer_accept"
+    best_offer: OfferRecommendation
+    alternatives: list[OfferRecommendation] = Field(default_factory=list)
+
+    model_config = ConfigDict(json_schema_extra={"example": {
+        "Customer_ID": "C_746892",
+        "method": "ml_offer_accept",
+        "best_offer": {
+            "Offer_Type": "قیمتی",
+            "Offer_Reason": "افزایش سهم از سبد",
+            "Product_Family": "Product_Family_03",
+            "Offer_Discount_Pct": 0.05,
+            "Validity_Days": 14,
+            "accept_probability": 0.72,
+            "business_score": 0.68,
+        },
+        "alternatives": [],
+    }})
+
+
+# ---------------------------------------------------------------------------
+# /customers/{id}/churn — ML churn probability
+# ---------------------------------------------------------------------------
+
+ChurnRiskLevelFa = Literal["پایین", "متوسط", "بالا"]
+
+
+class ChurnResponse(BaseModel):
+    Customer_ID: str
+    method: Literal["ml_churn"] = "ml_churn"
+    churn_probability: float = Field(..., description="P(churn) in the next 90 days.")
+    churn_prediction: int = Field(..., description="1 if probability >= 0.5, else 0.")
+    risk_level: ChurnRiskLevelFa = Field(..., description="بالا if p>=0.7, متوسط if p>=0.4, else پایین.")
+    snapshot_date: Optional[str] = Field(None, description="Feature snapshot date used for inference.")
+
+    model_config = ConfigDict(json_schema_extra={"example": {
+        "Customer_ID": "C_672256",
+        "method": "ml_churn",
+        "churn_probability": 0.81,
+        "churn_prediction": 1,
+        "risk_level": "بالا",
+        "snapshot_date": "2022-03-01",
+    }})
+
+
+# ---------------------------------------------------------------------------
 # /customers/{id}/financial — customer_financial_status.csv pipeline
 # ---------------------------------------------------------------------------
 
@@ -519,4 +584,49 @@ class ReturnedChecksResponse(BaseModel):
         "count": 0,
         "checks": [],
     }})
+
+
+# ---------------------------------------------------------------------------
+# /value-segments — customer value score 0-100
+# ---------------------------------------------------------------------------
+
+class CustomerValueItem(BaseModel):
+    customer_id: str
+    score: float = Field(..., ge=0, le=100, description="Weighted value score on a 0-100 scale.")
+    value_tier: ValueTier
+    monetary: Optional[float] = None
+    sow: Optional[float] = None
+    margin: Optional[float] = None
+    on_time: Optional[float] = None
+    check_quality: Optional[float] = None
+    frequency: Optional[float] = None
+    recency: Optional[float] = None
+    trend: Optional[float] = None
+    offer_accept: Optional[float] = None
+    growth_capacity: Optional[float] = None
+
+    model_config = ConfigDict(json_schema_extra={"example": {
+        "customer_id": "C_010649",
+        "score": 82.0,
+        "value_tier": "شریک طلایی",
+        "monetary": 0.71,
+        "sow": 0.64,
+        "margin": 0.58,
+        "on_time": 0.9,
+        "check_quality": 1.0,
+        "frequency": 0.55,
+        "recency": 0.88,
+        "trend": 0.62,
+        "offer_accept": 0.5,
+        "growth_capacity": 0.2,
+    }})
+
+
+class CustomerValueListResponse(BaseModel):
+    count: int
+    customers: list[CustomerValueItem]
+
+
+class CustomerValueResponse(CustomerValueItem):
+    pass
 

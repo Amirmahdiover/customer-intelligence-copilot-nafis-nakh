@@ -1,0 +1,34 @@
+{
+  "snapshot_date": "2022-06-30",
+  "window_start": "2022-01-01",
+  "window_end": "2022-06-30",
+  "normalization": "percentile_rank",
+  "weights": {
+    "monetary": 0.18,
+    "sow": 0.14,
+    "margin": 0.13,
+    "on_time": 0.12,
+    "check_quality": 0.1,
+    "frequency": 0.1,
+    "recency": 0.08,
+    "trend": 0.08,
+    "offer_accept": 0.04,
+    "growth_capacity": 0.03
+  },
+  "tiers": {
+    "مشتری قرمز": "0-39",
+    "مشتری پرچالش": "40-59",
+    "مشتری پایدار": "60-79",
+    "شریک طلایی": "80-100"
+  },
+  "n_customers": 644,
+  "tier_counts": {
+    "مشتری قرمز": 398,
+    "مشتری پایدار": 183,
+    "مشتری پرچالش": 49,
+    "شریک طلایی": 14
+  },
+  "score_mean": 44.99736024844721,
+  "score_min": 25.6,
+  "score_max": 89.6
+}

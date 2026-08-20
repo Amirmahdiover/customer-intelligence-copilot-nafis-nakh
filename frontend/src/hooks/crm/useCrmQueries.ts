@@ -2,7 +2,9 @@ import { useQuery } from '@tanstack/react-query'
 import {
   getCrmOverview,
   getCustomerActions,
+  getCustomerBestOffer,
   getCustomerById,
+  getCustomerChurn,
   getCustomerComplaints,
   getCustomerComplaintsCount,
   getCustomerCrm,
@@ -115,6 +117,22 @@ export function useCustomerActions(id: string) {
   return useQuery({
     queryKey: ['crm', 'actions', id],
     queryFn: () => getCustomerActions(id),
+    enabled: !!id,
+  })
+}
+
+export function useCustomerBestOffer(id: string) {
+  return useQuery({
+    queryKey: ['crm', 'offers', 'best', id],
+    queryFn: () => getCustomerBestOffer(id),
+    enabled: !!id,
+  })
+}
+
+export function useCustomerChurn(id: string) {
+  return useQuery({
+    queryKey: ['crm', 'churn', id],
+    queryFn: () => getCustomerChurn(id),
     enabled: !!id,
   })
 }

@@ -1,0 +1,234 @@
+{
+  "متادیتای_شیتها": {
+    "shape": [
+      16,
+      8
+    ],
+    "columns": [
+      "Sheet_Name",
+      "Purpose",
+      "Grain",
+      "Primary_Key",
+      "Row_Count",
+      "Column_Count",
+      "Time_Coverage",
+      "Data_Notes"
+    ],
+    "head": [
+      {
+        "Sheet_Name": "مشتریان",
+        "Purpose": "مستر مشتری بدون اطلاعات نام",
+        "Grain": "یک ردیف برای هر Customer_ID",
+        "Primary_Key": "Customer_ID",
+        "Row_Count": "644",
+        "Column_Count": "9",
+        "Time_Coverage": "بر اساس تاریخ‌های ثبت‌شده",
+        "Data_Notes": "Customer_ID مشترک؛ بدون شاخص تحلیلی آماده"
+      },
+      {
+        "Sheet_Name": "محصولات",
+        "Purpose": "مستر محصول",
+        "Grain": "یک ردیف برای هر Product_ID",
+        "Primary_Key": "Product_ID",
+        "Row_Count": "646",
+        "Column_Count": "8",
+        "Time_Coverage": "بر اساس تاریخ‌های ثبت‌شده",
+        "Data_Notes": "Customer_ID مشترک؛ بدون شاخص تحلیلی آماده"
+      },
+      {
+        "Sheet_Name": "فاکتورها",
+        "Purpose": "هدر فاکتور",
+        "Grain": "یک ردیف برای هر شماره فاکتور",
+        "Primary_Key": "شماره فاکتور",
+        "Row_Count": "14423",
+        "Column_Count": "7",
+        "Time_Coverage": "بر اساس تاریخ‌های ثبت‌شده",
+        "Data_Notes": "Customer_ID مشترک؛ بدون شاخص تحلیلی آماده"
+      }
+    ]
+  },
+  "متادیتای_ستونها": {
+    "shape": [
+      189,
+      11
+    ],
+    "columns": [
+      "Sheet_Name",
+      "Column_Order",
+      "Column_Name",
+      "Business_Definition",
+      "Physical_Data_Type",
+      "Key_Role",
+      "Nullable",
+      "Blank_Count",
+      "Distinct_Count",
+      "Allowed_Values_or_Rule",
+      "Example"
+    ],
+    "head": [
+      {
+        "Sheet_Name": "مشتریان",
+        "Column_Order": "1",
+        "Column_Name": "Customer_ID",
+        "Business_Definition": "فیلد Customer_ID مطابق grain شیت.",
+        "Physical_Data_Type": "Text",
+        "Key_Role": "Primary Key",
+        "Nullable": "False",
+        "Blank_Count": "0",
+        "Distinct_Count": "644",
+        "Allowed_Values_or_Rule": NaN,
+        "Example": "C_009817"
+      },
+      {
+        "Sheet_Name": "مشتریان",
+        "Column_Order": "2",
+        "Column_Name": "Location_ID",
+        "Business_Definition": "فیلد Location_ID مطابق grain شیت.",
+        "Physical_Data_Type": "Text",
+        "Key_Role": "Attribute",
+        "Nullable": "False",
+        "Blank_Count": "0",
+        "Distinct_Count": "16",
+        "Allowed_Values_or_Rule": "LOC-001 | LOC-002 | LOC-003 | LOC-004 | LOC-005 | LOC-006 | LOC-007 | LOC-008 | LOC-009 | LOC-010 | LOC-011 | LOC-012 | LOC-013 | LOC-014 | LOC-015 | LOC-016",
+        "Example": "LOC-012"
+      },
+      {
+        "Sheet_Name": "مشتریان",
+        "Column_Order": "3",
+        "Column_Name": "Customer_Segment",
+        "Business_Definition": "فیلد Customer_Segment مطابق grain شیت.",
+        "Physical_Data_Type": "Text",
+        "Key_Role": "Attribute",
+        "Nullable": "False",
+        "Blank_Count": "0",
+        "Distinct_Count": "3",
+        "Allowed_Values_or_Rule": "A | B | C",
+        "Example": "B"
+      }
+    ]
+  },
+  "روابط": {
+    "shape": [
+      26,
+      7
+    ],
+    "columns": [
+      "From_Sheet",
+      "From_Column",
+      "To_Sheet",
+      "To_Column",
+      "Cardinality",
+      "Required",
+      "PowerBI_Rule"
+    ],
+    "head": [
+      {
+        "From_Sheet": "فاکتورها",
+        "From_Column": "Customer_ID",
+        "To_Sheet": "مشتریان",
+        "To_Column": "Customer_ID",
+        "Cardinality": "N:1",
+        "Required": "اجباری",
+        "PowerBI_Rule": "رابطه مستقیم مجاز"
+      },
+      {
+        "From_Sheet": "فروش",
+        "From_Column": "Customer_ID",
+        "To_Sheet": "مشتریان",
+        "To_Column": "Customer_ID",
+        "Cardinality": "N:1",
+        "Required": "اجباری",
+        "PowerBI_Rule": "رابطه مستقیم مجاز"
+      },
+      {
+        "From_Sheet": "وصول",
+        "From_Column": "Customer_ID",
+        "To_Sheet": "مشتریان",
+        "To_Column": "Customer_ID",
+        "Cardinality": "N:1",
+        "Required": "اجباری",
+        "PowerBI_Rule": "رابطه مستقیم مجاز"
+      }
+    ]
+  },
+  "راهنمای_یکپارچه‌سازی": {
+    "shape": [
+      7,
+      4
+    ],
+    "columns": [
+      "Step",
+      "Topic",
+      "Rule",
+      "Sheets"
+    ],
+    "head": [
+      {
+        "Step": "1",
+        "Topic": "Customer_ID",
+        "Rule": "تمام جداول مشتری‌محور مستقیماً با Customer_ID به مشتریان متصل شوند.",
+        "Sheets": "تمام جداول مشتری‌محور"
+      },
+      {
+        "Step": "2",
+        "Topic": "Invoice grain",
+        "Rule": "فروش و وصول مستقیماً Join نشوند؛ هر دو به فاکتورها متصل شوند.",
+        "Sheets": "فروش، فاکتورها، وصول"
+      },
+      {
+        "Step": "3",
+        "Topic": "Complaint bridge",
+        "Rule": "شکایت از طریق اتصال_شکایت به یک یا چند Sales_Line_ID متصل شود.",
+        "Sheets": "شکایات، اتصال_شکایت، فروش"
+      }
+    ]
+  },
+  "نکات_کیفیت_داده": {
+    "shape": [
+      8,
+      2
+    ],
+    "columns": [
+      "موضوع",
+      "نکته"
+    ],
+    "head": [
+      {
+        "موضوع": "شناسه مشتری",
+        "نکته": "Customer_ID در همه شیت‌ها یکسان و مستقیماً قابل اتصال است."
+      },
+      {
+        "موضوع": "حریم اطلاعات",
+        "نکته": "نام شرکت، مشتری، صنعت، استان، شهر و اشخاص در فایل‌ها وجود ندارد."
+      },
+      {
+        "موضوع": "همبافت و لات",
+        "نکته": "همبافت و لات مستقل‌اند؛ خالی بودن همبافت در فروش منبعی که این شناسه را نداشته، عمدی است."
+      }
+    ]
+  },
+  "دامنه_مقادیر": {
+    "shape": [
+      6,
+      2
+    ],
+    "columns": [
+      "Domain",
+      "Allowed_Values"
+    ],
+    "head": [
+      {
+        "Domain": "نوع پرداخت",
+        "Allowed_Values": "cash_or_prepaid | long_term | payment_generalized | short_term"
+      },
+      {
+        "Domain": "Quality_Class_ID",
+        "Allowed_Values": "Quality_Class_01 | Quality_Class_02 | Quality_Class_03 | Quality_Class_04 | Quality_Class_05 | Quality_Class_06 | Quality_Class_07 | Quality_Class_08 | Quality_Class_GENERALIZED | Quality_Class_OTHER"
+      },
+      {
+        "Domain": "دسته بندی براقیت",
+        "Allowed_Values": "Luster_Class_01 | Luster_Class_02 | Luster_GENERALIZED | Luster_Unknown"
+      }
+    ]
+  }
+}

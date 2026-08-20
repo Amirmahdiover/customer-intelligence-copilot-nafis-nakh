@@ -5,6 +5,8 @@ import {
   buildProfileFromParts,
   buildSyntheticOrder,
   mapAction,
+  mapBestOffer,
+  mapChurn,
   mapComplaintDetail,
   mapCrmInteraction,
   mapCrmLatest,
@@ -12,9 +14,12 @@ import {
   mapCustomerInfoToCustomer,
   mapNotDueInvoices,
   mapReturnedChecks,
+  applyCustomerValue,
 } from '@/services/crm/api.mapper'
 import type {
   ApiActionResponse,
+  ApiBestOfferResponse,
+  ApiChurnResponse,
   ApiComplaintsCountResponse,
   ApiCrmInteractionsListResponse,
   ApiCrmLatestResponse,
@@ -26,8 +31,12 @@ import type {
   ApiNotDueInvoicesResponse,
   ApiReturnedChecksResponse,
   ApiRiskResponse,
+  ApiCustomerValueItem,
+  ApiCustomerValueListResponse,
 } from '@/types/api'
 import type {
+  BestOffer,
+  CustomerChurn,
   Complaint,
   CrmInteraction,
   CrmLatest,
@@ -145,14 +154,31 @@ export async function getCrmOverview(): Promise<CrmOverview> {
   }
 }
 
+async function fetchAllCustomerValues(): Promise<Map<string, ApiCustomerValueItem>> {
+  try {
+    const response = await apiFetch<ApiCustomerValueListResponse>(
+      '/value-segments/customers',
+    )
+    return new Map(response.customers.map((item) => [item.customer_id, item]))
+  } catch {
+    return new Map()
+  }
+}
+
 export async function getCustomers(
   filters: CustomerFilters = {},
 ): Promise<PaginatedResult<Customer>> {
   const page = filters.page ?? 1
   const limit = filters.limit ?? 10
-  const headers = await fetchAllCustomerHeaders()
+  const [headers, values] = await Promise.all([
+    fetchAllCustomerHeaders(),
+    fetchAllCustomerValues(),
+  ])
 
-  const baseCustomers = headers.map((info) => mapCustomerInfoToCustomer(info))
+  const baseCustomers = headers.map((info) => {
+    const customer = mapCustomerInfoToCustomer(info)
+    return applyCustomerValue(customer, values.get(customer.id))
+  })
   const filtered = applyClientFilters(baseCustomers, filters)
   return paginate(filtered, page, limit)
 }
@@ -162,16 +188,22 @@ export async function getCustomerById(id: string): Promise<Customer> {
     `/customers/${encodeURIComponent(id)}`,
   )
 
-  const [kpis, risk] = await Promise.all([
+  const [kpis, risk, value] = await Promise.all([
     apiFetch<ApiKpiResponse>(`/customers/${encodeURIComponent(id)}/kpis`).catch(
       () => undefined,
     ),
     apiFetch<ApiRiskResponse>(`/customers/${encodeURIComponent(id)}/risk`).catch(
       () => undefined,
     ),
+    apiFetch<ApiCustomerValueItem>(
+      `/customers/${encodeURIComponent(id)}/value`,
+    ).catch(() => undefined),
   ])
 
-  return mapCustomerInfoToCustomer(header.customer_info, kpis, risk)
+  return applyCustomerValue(
+    mapCustomerInfoToCustomer(header.customer_info, kpis, risk),
+    value,
+  )
 }
 
 export async function getCustomerOrders(id: string): Promise<Order[]> {
@@ -277,6 +309,20 @@ export async function getCustomerActions(
 
   const profile = buildProfileFromParts(header.customer_info, kpis)
   return mapAction(action, profile)
+}
+
+export async function getCustomerBestOffer(id: string): Promise<BestOffer> {
+  const response = await apiFetch<ApiBestOfferResponse>(
+    `/customers/${encodeURIComponent(id)}/offers/best`,
+  )
+  return mapBestOffer(response)
+}
+
+export async function getCustomerChurn(id: string): Promise<CustomerChurn> {
+  const response = await apiFetch<ApiChurnResponse>(
+    `/customers/${encodeURIComponent(id)}/churn`,
+  )
+  return mapChurn(response)
 }
 
 export async function getGlobalInsights(): Promise<Insight[]> {

@@ -11,6 +11,8 @@ import { CrmSection } from '@/components/crm/customer360/CrmSection'
 import { CustomerRisk } from '@/components/crm/customer360/CustomerRisk'
 import { InsightCard } from '@/components/crm/customer360/InsightCard'
 import { RecommendedAction } from '@/components/crm/customer360/RecommendedAction'
+import { BestOfferCard } from '@/components/crm/customer360/BestOfferCard'
+import { ChurnPredictionCard } from '@/components/crm/customer360/ChurnPredictionCard'
 
 export function Customer360() {
   const { id } = useParams<{ id: string }>()
@@ -38,6 +40,8 @@ export function Customer360() {
         <div>
           <InsightCard customerId={id} />
           <RecommendedAction customerId={id} />
+          <BestOfferCard customerId={id} />
+          <ChurnPredictionCard customerId={id} />
         </div>
       </div>
     </div>

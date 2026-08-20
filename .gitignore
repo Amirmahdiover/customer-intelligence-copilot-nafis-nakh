@@ -1,0 +1,15 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.Python
+.venv/
+venv/
+
+# Excel/Office lock files (created while a workbook is open)
+~$*
+*.tmp
+
+# Local env
+.env
+.env.*
