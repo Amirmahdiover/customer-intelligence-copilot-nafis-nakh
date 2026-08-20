@@ -8,7 +8,10 @@ import {
   mapComplaintDetail,
   mapCrmInteraction,
   mapCrmLatest,
+  mapCustomerFinancial,
   mapCustomerInfoToCustomer,
+  mapNotDueInvoices,
+  mapReturnedChecks,
 } from '@/services/crm/api.mapper'
 import type {
   ApiActionResponse,
@@ -16,9 +19,12 @@ import type {
   ApiCrmInteractionsListResponse,
   ApiCrmLatestResponse,
   ApiCustomerComplaintsResponse,
+  ApiCustomerFinancialResponse,
   ApiCustomerHeaderListResponse,
   ApiCustomerHeaderResponse,
   ApiKpiResponse,
+  ApiNotDueInvoicesResponse,
+  ApiReturnedChecksResponse,
   ApiRiskResponse,
 } from '@/types/api'
 import type {
@@ -28,10 +34,13 @@ import type {
   CrmOverview,
   Customer,
   CustomerFilters,
+  CustomerFinancial,
   Insight,
+  NotDueInvoice,
   Order,
   PaginatedResult,
   RecommendedAction,
+  ReturnedCheck,
   RiskLevel,
 } from '@/types/crm'
 
@@ -211,6 +220,31 @@ export async function getCustomerCrmInteractions(
     `/customers/${encodeURIComponent(id)}/crm/interactions`,
   )
   return response.interactions.map(mapCrmInteraction)
+}
+
+export async function getCustomerFinancial(id: string): Promise<CustomerFinancial> {
+  const response = await apiFetch<ApiCustomerFinancialResponse>(
+    `/customers/${encodeURIComponent(id)}/financial`,
+  )
+  return mapCustomerFinancial(response)
+}
+
+export async function getCustomerNotDueInvoices(
+  id: string,
+): Promise<NotDueInvoice[]> {
+  const response = await apiFetch<ApiNotDueInvoicesResponse>(
+    `/customers/${encodeURIComponent(id)}/financial/not-due-invoices`,
+  )
+  return mapNotDueInvoices(response)
+}
+
+export async function getCustomerReturnedChecks(
+  id: string,
+): Promise<ReturnedCheck[]> {
+  const response = await apiFetch<ApiReturnedChecksResponse>(
+    `/customers/${encodeURIComponent(id)}/financial/returned-checks`,
+  )
+  return mapReturnedChecks(response)
 }
 
 export async function getCustomerInsights(id: string): Promise<Insight[]> {

@@ -2,7 +2,7 @@ import { useParams } from 'react-router-dom'
 import { CustomerHeader } from '@/components/crm/customer360/CustomerHeader'
 import { CustomerKpi } from '@/components/crm/customer360/CustomerKpi'
 import { OrderStatusSection } from '@/components/crm/customer360/OrderStatus'
-import { PaymentStatusSection } from '@/components/crm/customer360/PaymentStatus'
+import { FinancialSection } from '@/components/crm/customer360/FinancialSection'
 import { ReorderSignal } from '@/components/crm/customer360/ReorderSignal'
 import { CustomerBehavior } from '@/components/crm/customer360/CustomerBehavior'
 import { ProductMix } from '@/components/crm/customer360/ProductMix'
@@ -27,7 +27,7 @@ export function Customer360() {
       <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-[1fr_340px]">
         <div>
           <OrderStatusSection customerId={id} />
-          <PaymentStatusSection customerId={id} />
+          <FinancialSection customerId={id} />
           <ReorderSignal customerId={id} />
           <CustomerBehavior customerId={id} />
           <ProductMix customerId={id} />

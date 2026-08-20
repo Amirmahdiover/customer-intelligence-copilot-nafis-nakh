@@ -13,6 +13,7 @@ from app.complaint_store import complaint_store, get_complaint_store
 from app.crm_store import crm_store, get_crm_store
 from app.customer_header_store import customer_header_store, get_customer_header_store
 from app.data_loader import SNAPSHOT_DATE, store
+from app.financial_store import financial_store, get_financial_store
 from app.rules import risk_breakdown
 from app.schemas import (
     ActionResponse,
@@ -20,10 +21,17 @@ from app.schemas import (
     CrmInteractionsListResponse,
     CrmLatestResponse,
     CustomerComplaintsListResponse,
+    CustomerFinancialResponse,
     CustomerHeaderListResponse,
     CustomerHeaderResponse,
+    CreditSummary,
+    DelayCostSummary,
     ErrorResponse,
     KPIResponse,
+    NotDueInvoicesResponse,
+    NotDueInvoicesSummary,
+    ReturnedChecksResponse,
+    ReturnedChecksSummary,
     RiskResponse,
 )
 
@@ -32,6 +40,7 @@ OPENAPI_TAGS = [
     {"name": "KPIs", "description": "RFM, order pattern, delay, lifetime, margin, LTV, and revenue-share metrics."},
     {"name": "Complaints", "description": "Complaint history and detail records."},
     {"name": "CRM", "description": "CRM interactions: latest next_action and full interaction history."},
+    {"name": "Financial", "description": "Customer financial status: outstanding balance, not-due invoices, returned checks, credit utilization, delay cost."},
     {"name": "Risk", "description": "Rule-based risk scoring with a transparent, factor-by-factor breakdown."},
     {"name": "Recommended Actions", "description": "Rule-based next-best-action per customer."},
 ]
@@ -57,10 +66,12 @@ def preload_data_stores() -> None:
     headers = get_customer_header_store()
     complaints = get_complaint_store()
     crm = get_crm_store()
+    financial = get_financial_store()
     print(
         f"Loaded {len(headers.list_customer_headers())} customers, "
         f"{sum(complaints.count_for_customer(cid) for cid in complaints.customers_with_complaints())} complaints, "
-        f"{crm.total_interactions()} CRM interactions."
+        f"{crm.total_interactions()} CRM interactions, "
+        f"{financial.total_customers()} financial status records."
     )
 
 NOT_FOUND_RESPONSES = {404: {"model": ErrorResponse, "description": "Customer not found"}}
@@ -205,6 +216,81 @@ def get_customer_crm_interactions(customer_id: str = CUSTOMER_ID_PATH):
     return CrmInteractionsListResponse(
         customer_id=customer_id,
         interactions=crm_store.list_interactions(customer_id),
+    )
+
+
+def _build_financial_response(customer_id: str) -> CustomerFinancialResponse:
+    status = financial_store.get_status(customer_id)
+    return CustomerFinancialResponse(
+        customer_id=customer_id,
+        outstanding_balance=status["outstanding_balance"],
+        not_due_invoices=NotDueInvoicesSummary(count=status["not_due_invoice_count"]),
+        returned_checks=ReturnedChecksSummary(
+            has_returned_check=status["has_returned_check"],
+            count=status["returned_check_count"],
+            last_date=status["last_returned_check_date"],
+        ),
+        credit=CreditSummary(
+            limit=status["credit_limit"],
+            used_percent=status["credit_used_percent"],
+            remaining=status["credit_remaining"],
+            status=status["credit_status"],
+        ),
+        delay_cost=DelayCostSummary(
+            amount=status["delay_cost"],
+            annual_financing_rate=status["annual_financing_rate"],
+        ),
+    )
+
+
+@app.get(
+    "/customers/{customer_id}/financial",
+    response_model=CustomerFinancialResponse,
+    responses=NOT_FOUND_RESPONSES,
+    tags=["Financial"],
+    summary="Get customer financial status",
+    description="Outstanding balance, not-due invoice count, returned checks, credit utilization, "
+                "and delay cost — computed from sales/collections/customers as of the snapshot date.",
+)
+def get_customer_financial(customer_id: str = CUSTOMER_ID_PATH):
+    _ensure_customer_exists(customer_id)
+    return _build_financial_response(customer_id)
+
+
+@app.get(
+    "/customers/{customer_id}/financial/not-due-invoices",
+    response_model=NotDueInvoicesResponse,
+    responses=NOT_FOUND_RESPONSES,
+    tags=["Financial"],
+    summary="List not-due open invoices for a customer",
+    description="Open invoices with outstanding balance > 0 and due date after the snapshot. "
+                "Due dates come directly from the collections sheet.",
+)
+def get_customer_not_due_invoices(customer_id: str = CUSTOMER_ID_PATH):
+    _ensure_customer_exists(customer_id)
+    invoices = financial_store.list_not_due_invoices(customer_id)
+    return NotDueInvoicesResponse(
+        customer_id=customer_id,
+        count=len(invoices),
+        invoices=invoices,
+    )
+
+
+@app.get(
+    "/customers/{customer_id}/financial/returned-checks",
+    response_model=ReturnedChecksResponse,
+    responses=NOT_FOUND_RESPONSES,
+    tags=["Financial"],
+    summary="List returned check events for a customer",
+    description="Collection records where the returned-check flag is set, newest first.",
+)
+def get_customer_returned_checks(customer_id: str = CUSTOMER_ID_PATH):
+    _ensure_customer_exists(customer_id)
+    checks = financial_store.list_returned_checks(customer_id)
+    return ReturnedChecksResponse(
+        customer_id=customer_id,
+        count=len(checks),
+        checks=checks,
     )
 
 

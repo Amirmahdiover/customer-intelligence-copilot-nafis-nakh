@@ -19,6 +19,7 @@ export type ActionType =
   | 'create-opportunity'
 export type ComplaintStatus = 'open' | 'resolved'
 export type ComplaintPriority = 'low' | 'medium' | 'high'
+export type CreditStatus = 'safe' | 'warning' | 'critical' | 'over_limit' | 'unknown'
 export type OrderTimelineStep =
   | 'created'
   | 'confirmed'
@@ -120,6 +121,33 @@ export interface CrmLatest {
   summaryText: string | null
   updatedAt: string | null
   urgency: string | null
+}
+
+export interface CustomerFinancial {
+  customerId: string
+  outstandingBalance: number
+  notDueInvoiceCount: number
+  hasReturnedCheck: boolean
+  returnedCheckCount: number
+  lastReturnedCheckDate: string | null
+  creditLimit: number | null
+  creditUsedPercent: number | null
+  creditRemaining: number | null
+  creditStatus: CreditStatus
+  delayCost: number
+  annualFinancingRate: number
+}
+
+export interface NotDueInvoice {
+  invoiceId: string | null
+  invoiceTotal: number
+  amountCollected: number
+  outstandingBalance: number
+  dueDate: string | null
+}
+
+export interface ReturnedCheck {
+  date: string | null
 }
 
 export interface Insight {

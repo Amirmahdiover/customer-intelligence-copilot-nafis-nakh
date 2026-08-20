@@ -424,3 +424,99 @@ class ActionResponse(BaseModel):
         "Risk_Level": "Medium", "RFM_Segment": "Lost / Churned", "Customer_Status": "فعال",
         "Days_Until_Expected_Next_Order": -41.0, "method": "rule_based",
     }})
+
+
+# ---------------------------------------------------------------------------
+# /customers/{id}/financial — customer_financial_status.csv pipeline
+# ---------------------------------------------------------------------------
+
+CreditStatus = Literal["safe", "warning", "critical", "over_limit", "unknown"]
+
+
+class NotDueInvoicesSummary(BaseModel):
+    count: int = Field(..., description="Number of open invoices whose due date is after the snapshot.")
+
+
+class ReturnedChecksSummary(BaseModel):
+    has_returned_check: bool
+    count: int
+    last_date: Optional[str] = Field(None, description="Most recent returned-check event date, ISO YYYY-MM-DD.")
+
+
+class CreditSummary(BaseModel):
+    limit: Optional[float] = Field(None, description="Approved credit limit from customers sheet.")
+    used_percent: Optional[float] = Field(None, description="Outstanding balance / credit limit × 100.")
+    remaining: Optional[float] = Field(None, description="Credit limit minus outstanding balance.")
+    status: CreditStatus = Field(..., description="Derived from configurable thresholds in app/config.py.")
+
+
+class DelayCostSummary(BaseModel):
+    amount: float = Field(..., description="Sum of financing cost for delayed collections.")
+    annual_financing_rate: float = Field(..., description="Configurable annual rate used in delay cost formula.")
+
+
+class CustomerFinancialResponse(BaseModel):
+    customer_id: str
+    outstanding_balance: float = Field(..., description="Sum of max(invoice_total − collected, 0) across all invoices.")
+    not_due_invoices: NotDueInvoicesSummary
+    returned_checks: ReturnedChecksSummary
+    credit: CreditSummary
+    delay_cost: DelayCostSummary
+
+    model_config = ConfigDict(json_schema_extra={"example": {
+        "customer_id": "C_050237",
+        "outstanding_balance": 340000000.0,
+        "not_due_invoices": {"count": 0},
+        "returned_checks": {"has_returned_check": False, "count": 0, "last_date": None},
+        "credit": {"limit": 400000000.0, "used_percent": 85.0, "remaining": 60000000.0, "status": "critical"},
+        "delay_cost": {"amount": 12000000.0, "annual_financing_rate": 0.36},
+    }})
+
+
+class NotDueInvoiceItem(BaseModel):
+    invoice_id: Optional[str] = None
+    invoice_total: float
+    amount_collected: float
+    outstanding_balance: float
+    due_date: Optional[str] = Field(None, description="Due date from collections sheet (not reconstructed from payment terms).")
+
+    model_config = ConfigDict(json_schema_extra={"example": {
+        "invoice_id": "T_1003",
+        "invoice_total": 150000000.0,
+        "amount_collected": 50000000.0,
+        "outstanding_balance": 100000000.0,
+        "due_date": "2022-07-15",
+    }})
+
+
+class NotDueInvoicesResponse(BaseModel):
+    customer_id: str
+    count: int
+    invoices: list[NotDueInvoiceItem]
+
+    model_config = ConfigDict(json_schema_extra={"example": {
+        "customer_id": "C_050237",
+        "count": 0,
+        "invoices": [],
+    }})
+
+
+class ReturnedCheckItem(BaseModel):
+    date: Optional[str] = Field(None, description="Collection event date for a returned check, ISO YYYY-MM-DD.")
+
+    model_config = ConfigDict(json_schema_extra={"example": {
+        "date": "2022-06-15",
+    }})
+
+
+class ReturnedChecksResponse(BaseModel):
+    customer_id: str
+    count: int
+    checks: list[ReturnedCheckItem]
+
+    model_config = ConfigDict(json_schema_extra={"example": {
+        "customer_id": "C_050237",
+        "count": 0,
+        "checks": [],
+    }})
+
