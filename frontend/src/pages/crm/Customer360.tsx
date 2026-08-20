@@ -19,12 +19,12 @@ export function Customer360() {
   }
 
   return (
-    <div className="crm-page customer-360">
+    <div className="mx-auto max-w-7xl px-4 py-6 pt-14 lg:px-8 lg:pt-6">
       <CustomerHeader customerId={id} />
       <CustomerKpi customerId={id} />
 
-      <div className="customer-360__grid">
-        <div className="customer-360__main">
+      <div className="grid grid-cols-1 items-start gap-5 xl:grid-cols-[1fr_340px]">
+        <div>
           <OrderStatusSection customerId={id} />
           <PaymentStatusSection customerId={id} />
           <ReorderSignal customerId={id} />
@@ -33,7 +33,7 @@ export function Customer360() {
           <Complaints customerId={id} />
           <CustomerRisk customerId={id} />
         </div>
-        <div className="customer-360__sidebar">
+        <div>
           <InsightCard customerId={id} />
           <RecommendedAction customerId={id} />
         </div>

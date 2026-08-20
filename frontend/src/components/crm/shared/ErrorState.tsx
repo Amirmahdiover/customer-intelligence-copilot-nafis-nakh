@@ -1,3 +1,5 @@
+import { Button } from '@/components/ui/button'
+
 interface ErrorStateProps {
   message?: string
   onRetry?: () => void
@@ -8,12 +10,12 @@ export function ErrorState({
   onRetry,
 }: ErrorStateProps) {
   return (
-    <div className="error-state">
-      <p>{message}</p>
+    <div className="px-4 py-8 text-center text-destructive">
+      <p className="mb-4">{message}</p>
       {onRetry && (
-        <button type="button" className="btn btn--secondary" onClick={onRetry}>
+        <Button type="button" variant="outline" onClick={onRetry}>
           تلاش مجدد
-        </button>
+        </Button>
       )}
     </div>
   )

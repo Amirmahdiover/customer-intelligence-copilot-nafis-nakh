@@ -1,4 +1,13 @@
 import { Search, X } from 'lucide-react'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import type { CustomerFilters } from '@/types/crm'
 import {
   CUSTOMER_STATUS_LABELS,
@@ -34,94 +43,107 @@ export function SearchFilters({ filters, onChange }: SearchFiltersProps) {
   }
 
   return (
-    <div className="search-filters">
-      <div className="search-filters__search">
-        <Search size={18} className="search-filters__search-icon" />
-        <input
+    <div className="mb-5">
+      <div className="relative mb-3">
+        <Search
+          size={18}
+          className="pointer-events-none absolute top-1/2 right-3.5 -translate-y-1/2 text-muted-foreground"
+        />
+        <Input
           type="text"
-          placeholder="جستجو: نام شرکت، کد مشتری، تلفن، ایمیل..."
+          placeholder="جستجو: کد مشتری، نماینده فروش، موقعیت..."
           value={filters.search ?? ''}
           onChange={(e) => update({ search: e.target.value })}
-          className="search-filters__input"
+          className="pr-10"
         />
       </div>
 
-      <div className="search-filters__row">
-        <select
+      <div className="flex flex-wrap items-center gap-2">
+        <Select
           value={filters.status ?? 'all'}
-          onChange={(e) =>
-            update({
-              status: e.target.value as CustomerFilters['status'],
-            })
+          onValueChange={(value) =>
+            update({ status: value as CustomerFilters['status'] })
           }
-          className="search-filters__select"
         >
-          <option value="all">وضعیت مشتری</option>
-          {Object.entries(CUSTOMER_STATUS_LABELS).map(([k, v]) => (
-            <option key={k} value={k}>
-              {v}
-            </option>
-          ))}
-        </select>
+          <SelectTrigger className="w-[160px]">
+            <SelectValue placeholder="وضعیت مشتری" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">وضعیت مشتری</SelectItem>
+            {Object.entries(CUSTOMER_STATUS_LABELS).map(([k, v]) => (
+              <SelectItem key={k} value={k}>
+                {v}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
-        <select
+        <Select
           value={filters.risk ?? 'all'}
-          onChange={(e) =>
-            update({ risk: e.target.value as CustomerFilters['risk'] })
+          onValueChange={(value) =>
+            update({ risk: value as CustomerFilters['risk'] })
           }
-          className="search-filters__select"
         >
-          <option value="all">ریسک</option>
-          {Object.entries(RISK_LABELS).map(([k, v]) => (
-            <option key={k} value={k}>
-              {v}
-            </option>
-          ))}
-        </select>
+          <SelectTrigger className="w-[140px]">
+            <SelectValue placeholder="ریسک" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">ریسک</SelectItem>
+            {Object.entries(RISK_LABELS).map(([k, v]) => (
+              <SelectItem key={k} value={k}>
+                {v}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
-        <select
+        <Select
           value={filters.paymentStatus ?? 'all'}
-          onChange={(e) =>
+          onValueChange={(value) =>
             update({
-              paymentStatus: e.target.value as CustomerFilters['paymentStatus'],
+              paymentStatus: value as CustomerFilters['paymentStatus'],
             })
           }
-          className="search-filters__select"
         >
-          <option value="all">وضعیت پرداخت</option>
-          {Object.entries(PAYMENT_STATUS_LABELS).map(([k, v]) => (
-            <option key={k} value={k}>
-              {v}
-            </option>
-          ))}
-        </select>
+          <SelectTrigger className="w-[160px]">
+            <SelectValue placeholder="وضعیت پرداخت" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">وضعیت پرداخت</SelectItem>
+            {Object.entries(PAYMENT_STATUS_LABELS).map(([k, v]) => (
+              <SelectItem key={k} value={k}>
+                {v}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
-        <select
+        <Select
           value={filters.orderStatus ?? 'all'}
-          onChange={(e) =>
+          onValueChange={(value) =>
             update({
-              orderStatus: e.target.value as CustomerFilters['orderStatus'],
+              orderStatus: value as CustomerFilters['orderStatus'],
             })
           }
-          className="search-filters__select"
         >
-          <option value="all">وضعیت سفارش</option>
-          {Object.entries(ORDER_STATUS_LABELS).map(([k, v]) => (
-            <option key={k} value={k}>
-              {v}
-            </option>
-          ))}
-        </select>
+          <SelectTrigger className="w-[160px]">
+            <SelectValue placeholder="وضعیت سفارش" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">وضعیت سفارش</SelectItem>
+            {Object.entries(ORDER_STATUS_LABELS).map(([k, v]) => (
+              <SelectItem key={k} value={k}>
+                {v}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
         {hasFilters && (
-          <button
-            type="button"
-            className="btn btn--ghost"
-            onClick={clearFilters}
-          >
-            <X size={16} />
+          <Button type="button" variant="ghost" onClick={clearFilters}>
+            <X />
             پاک کردن فیلترها
-          </button>
+          </Button>
         )}
       </div>
     </div>

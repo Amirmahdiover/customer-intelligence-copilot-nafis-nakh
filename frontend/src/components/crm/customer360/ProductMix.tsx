@@ -1,5 +1,7 @@
 import { SectionSkeleton } from '@/components/crm/shared/skeletons/CrmSkeletons'
 import { ErrorState } from '@/components/crm/shared/ErrorState'
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Progress } from '@/components/ui/progress'
 import { useCustomer } from '@/hooks/crm/useCrmQueries'
 
 interface ProductMixProps {
@@ -15,24 +17,21 @@ export function ProductMix({ customerId }: ProductMixProps) {
   }
 
   return (
-    <section className="card">
-      <h2 className="section-title">محصولات محبوب</h2>
-      <div className="product-mix">
+    <Card className="mb-5">
+      <CardHeader>
+        <CardTitle>محصولات محبوب</CardTitle>
+      </CardHeader>
+      <CardContent className="flex flex-col gap-3.5">
         {customer.favoriteProducts.map((product) => (
-          <div key={product.name} className="product-mix__item">
-            <div className="product-mix__header">
+          <div key={product.name}>
+            <div className="mb-1 flex justify-between text-sm">
               <span>{product.name}</span>
               <span>{product.percentage}٪</span>
             </div>
-            <div className="product-mix__track">
-              <div
-                className="product-mix__fill"
-                style={{ width: `${product.percentage}%` }}
-              />
-            </div>
+            <Progress value={product.percentage} />
           </div>
         ))}
-      </div>
-    </section>
+      </CardContent>
+    </Card>
   )
 }

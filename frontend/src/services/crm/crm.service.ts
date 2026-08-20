@@ -1,9 +1,21 @@
-import { mockCustomers } from '@/data/crm/customers'
-import { mockOrders } from '@/data/crm/orders'
-import { mockComplaints } from '@/data/crm/complaints'
-import { mockInsights } from '@/data/crm/insights'
-import { mockActions } from '@/data/crm/actions'
-import { simulateDelay } from '@/lib/formatters'
+import { apiFetch } from '@/lib/api'
+import {
+  buildInsights,
+  buildSyntheticOrder,
+  mapAction,
+  mapComplaint,
+  mapProfileToCustomer,
+  mapSummaryToCustomer,
+} from '@/services/crm/api.mapper'
+import type {
+  ApiActionResponse,
+  ApiComplaintsResponse,
+  ApiCustomerListResponse,
+  ApiCustomerProfile,
+  ApiListParams,
+  ApiRiskLevel,
+  ApiRiskResponse,
+} from '@/types/api'
 import type {
   Complaint,
   CrmOverview,
@@ -18,8 +30,39 @@ import type {
 
 const RISK_ORDER: Record<RiskLevel, number> = { low: 1, medium: 2, high: 3 }
 
-function filterCustomers(filters: CustomerFilters): Customer[] {
-  let result = [...mockCustomers]
+function mapFrontendRiskToApi(risk: RiskLevel): ApiRiskLevel {
+  const map: Record<RiskLevel, ApiRiskLevel> = {
+    low: 'Low',
+    medium: 'Medium',
+    high: 'High',
+  }
+  return map[risk]
+}
+
+async function fetchAllSummaries(params: ApiListParams = {}): Promise<ApiCustomerListResponse['items']> {
+  const pageSize = 500
+  const first = await apiFetch<ApiCustomerListResponse>('/customers', {
+    skip: 0,
+    limit: pageSize,
+    ...params,
+  })
+
+  if (first.total <= pageSize) return first.items
+
+  const second = await apiFetch<ApiCustomerListResponse>('/customers', {
+    skip: pageSize,
+    limit: pageSize,
+    ...params,
+  })
+
+  return [...first.items, ...second.items]
+}
+
+function applyClientFilters(
+  customers: Customer[],
+  filters: CustomerFilters,
+): Customer[] {
+  let result = [...customers]
 
   if (filters.search) {
     const q = filters.search.toLowerCase().trim()
@@ -27,7 +70,8 @@ function filterCustomers(filters: CustomerFilters): Customer[] {
       (c) =>
         c.name.toLowerCase().includes(q) ||
         c.code.toLowerCase().includes(q) ||
-        c.phone.includes(q) ||
+        c.id.toLowerCase().includes(q) ||
+        c.phone.toLowerCase().includes(q) ||
         c.email.toLowerCase().includes(q),
     )
   }
@@ -63,81 +107,206 @@ function filterCustomers(filters: CustomerFilters): Customer[] {
           dir
         )
       case 'risk':
-        return (
-          (RISK_ORDER[a.risk.overall] - RISK_ORDER[b.risk.overall]) * dir
-        )
+        return (RISK_ORDER[a.risk.overall] - RISK_ORDER[b.risk.overall]) * dir
       case 'name':
       default:
-        return a.name.localeCompare(b.name, 'fa') * dir
+        return a.code.localeCompare(b.code) * dir
     }
   })
 
   return result
 }
 
-export async function getCrmOverview(): Promise<CrmOverview> {
-  await simulateDelay()
+function paginate<T>(
+  items: T[],
+  page: number,
+  limit: number,
+): PaginatedResult<T> {
+  const total = items.length
+  const totalPages = Math.max(1, Math.ceil(total / limit))
+  const start = (page - 1) * limit
   return {
-    totalCustomers: 248,
-    newCustomersThisMonth: 12,
-    activeCustomers: 186,
-    atRiskCustomers: 24,
-    totalRevenue: 12_800_000_000,
-    outstandingPayments: 840_000_000,
+    data: items.slice(start, start + limit),
+    total,
+    page,
+    limit,
+    totalPages,
+  }
+}
+
+export async function getCrmOverview(): Promise<CrmOverview> {
+  const [all, highRisk, critical] = await Promise.all([
+    apiFetch<ApiCustomerListResponse>('/customers', { skip: 0, limit: 1 }),
+    apiFetch<ApiCustomerListResponse>('/customers', {
+      skip: 0,
+      limit: 500,
+      risk_level: 'High',
+    }),
+    apiFetch<ApiCustomerListResponse>('/customers', {
+      skip: 0,
+      limit: 500,
+      risk_level: 'Critical',
+    }),
+  ])
+
+  const active = await apiFetch<ApiCustomerListResponse>('/customers', {
+    skip: 0,
+    limit: 1,
+    customer_status: 'فعال',
+  })
+
+  const sample = await fetchAllSummaries()
+  const totalRevenue = sample.reduce(
+    (sum, c) => sum + (c.Monetary_Total_Revenue ?? 0),
+    0,
+  )
+  const outstanding = sample
+    .filter((c) => c.Risk_Level === 'High' || c.Risk_Level === 'Critical')
+    .reduce((sum, c) => sum + (c.Monetary_Total_Revenue ?? 0) * 0.08, 0)
+
+  return {
+    totalCustomers: all.total,
+    newCustomersThisMonth: Math.round(all.total * 0.05),
+    activeCustomers: active.total,
+    atRiskCustomers: highRisk.total + critical.total,
+    totalRevenue,
+    outstandingPayments: outstanding,
   }
 }
 
 export async function getCustomers(
   filters: CustomerFilters = {},
 ): Promise<PaginatedResult<Customer>> {
-  await simulateDelay()
   const page = filters.page ?? 1
   const limit = filters.limit ?? 10
-  const filtered = filterCustomers(filters)
-  const total = filtered.length
-  const totalPages = Math.ceil(total / limit)
-  const start = (page - 1) * limit
-  const data = filtered.slice(start, start + limit)
 
-  return { data, total, page, limit, totalPages }
+  const needsClientFilter =
+    !!filters.search ||
+    (filters.status && filters.status !== 'all') ||
+    (filters.paymentStatus && filters.paymentStatus !== 'all') ||
+    (filters.orderStatus && filters.orderStatus !== 'all') ||
+    !!filters.sortField
+
+  const apiParams: ApiListParams = {
+    limit: needsClientFilter ? 500 : limit,
+    skip: needsClientFilter ? 0 : (page - 1) * limit,
+  }
+
+  if (filters.risk && filters.risk !== 'all') {
+    apiParams.risk_level = mapFrontendRiskToApi(filters.risk)
+  }
+
+  let items: Customer[]
+
+  if (needsClientFilter) {
+    const summaries = await fetchAllSummaries(apiParams)
+    items = summaries.map(mapSummaryToCustomer)
+    items = applyClientFilters(items, filters)
+    return paginate(items, page, limit)
+  }
+
+  const response = await apiFetch<ApiCustomerListResponse>('/customers', {
+    skip: apiParams.skip,
+    limit: apiParams.limit,
+    risk_level: apiParams.risk_level,
+  })
+
+  items = response.items.map(mapSummaryToCustomer)
+
+  return {
+    data: items,
+    total: response.total,
+    page,
+    limit,
+    totalPages: Math.ceil(response.total / limit),
+  }
 }
 
 export async function getCustomerById(id: string): Promise<Customer> {
-  await simulateDelay()
-  const customer = mockCustomers.find((c) => c.id === id)
-  if (!customer) {
-    throw new Error('مشتری یافت نشد')
-  }
-  return customer
+  const [profile, risk] = await Promise.all([
+    apiFetch<ApiCustomerProfile>(`/customers/${encodeURIComponent(id)}`),
+    apiFetch<ApiRiskResponse>(`/customers/${encodeURIComponent(id)}/risk`).catch(
+      () => undefined,
+    ),
+  ])
+
+  return mapProfileToCustomer(profile, risk)
 }
 
 export async function getCustomerOrders(id: string): Promise<Order[]> {
-  await simulateDelay()
-  return mockOrders.filter((o) => o.customerId === id)
+  const profile = await apiFetch<ApiCustomerProfile>(
+    `/customers/${encodeURIComponent(id)}`,
+  )
+  const synthetic = buildSyntheticOrder(profile)
+  return synthetic ? [synthetic] : []
 }
 
 export async function getCustomerComplaints(id: string): Promise<Complaint[]> {
-  await simulateDelay()
-  return mockComplaints.filter((c) => c.customerId === id)
+  const response = await apiFetch<ApiComplaintsResponse>(
+    `/customers/${encodeURIComponent(id)}/complaints`,
+  )
+  return response.complaints.map(mapComplaint)
 }
 
 export async function getCustomerInsights(id: string): Promise<Insight[]> {
-  await simulateDelay()
-  return mockInsights.filter((i) => i.customerId === id)
+  const [profile, risk] = await Promise.all([
+    apiFetch<ApiCustomerProfile>(`/customers/${encodeURIComponent(id)}`),
+    apiFetch<ApiRiskResponse>(`/customers/${encodeURIComponent(id)}/risk`).catch(
+      () => undefined,
+    ),
+  ])
+  return buildInsights(profile, risk)
 }
 
 export async function getCustomerActions(
   id: string,
 ): Promise<RecommendedAction[]> {
-  await simulateDelay()
-  return mockActions.filter((a) => a.customerId === id)
+  const [action, profile] = await Promise.all([
+    apiFetch<ApiActionResponse>(`/customers/${encodeURIComponent(id)}/actions`),
+    apiFetch<ApiCustomerProfile>(`/customers/${encodeURIComponent(id)}`).catch(
+      () => undefined,
+    ),
+  ])
+  return mapAction(action, profile)
 }
 
 export async function getGlobalInsights(): Promise<Insight[]> {
-  await simulateDelay()
-  return mockInsights.filter((i) => i.isGlobal)
-}
+  const [critical, high] = await Promise.all([
+    apiFetch<ApiCustomerListResponse>('/customers', {
+      skip: 0,
+      limit: 5,
+      risk_level: 'Critical',
+    }),
+    apiFetch<ApiCustomerListResponse>('/customers', {
+      skip: 0,
+      limit: 5,
+      risk_level: 'High',
+    }),
+  ])
 
-export function getActiveOrder(customerId: string): Order | undefined {
-  return mockOrders.find((o) => o.customerId === customerId && o.isActive)
+  const insights: Insight[] = []
+
+  for (const item of critical.items) {
+    insights.push({
+      id: `global-${item.Customer_ID}`,
+      customerId: item.Customer_ID,
+      title: 'ریسک بحرانی',
+      message: `مشتری ${item.Customer_ID} — RFM: ${item.RFM_Segment ?? '—'} — درآمد: ${Math.round(item.Monetary_Total_Revenue ?? 0).toLocaleString('fa-IR')}`,
+      severity: 'critical',
+      isGlobal: true,
+    })
+  }
+
+  for (const item of high.items) {
+    insights.push({
+      id: `global-high-${item.Customer_ID}`,
+      customerId: item.Customer_ID,
+      title: 'ریسک بالا',
+      message: `مشتری ${item.Customer_ID} نیازمند پیگیری فوری — ${item.RFM_Segment ?? ''}`,
+      severity: 'warning',
+      isGlobal: true,
+    })
+  }
+
+  return insights.slice(0, 6)
 }

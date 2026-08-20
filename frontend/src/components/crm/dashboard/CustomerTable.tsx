@@ -1,17 +1,33 @@
 import { useNavigate } from 'react-router-dom'
-import { Eye, ArrowUpDown } from 'lucide-react'
-import { StatusBadge } from '@/components/crm/shared/StatusBadge'
+import { TrendingDown, TrendingUp, Minus } from 'lucide-react'
+import { RiskBar } from '@/components/crm/dashboard/RiskBar'
 import { CustomerTableSkeleton } from '@/components/crm/shared/skeletons/CrmSkeletons'
 import { ErrorState } from '@/components/crm/shared/ErrorState'
 import { EmptyState } from '@/components/crm/shared/EmptyState'
+import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table'
 import { useCustomers } from '@/hooks/crm/useCrmQueries'
 import {
-  CUSTOMER_STATUS_LABELS,
-  PAYMENT_STATUS_LABELS,
-  RISK_LABELS,
-} from '@/lib/constants'
+  CHURN_TREND_LABELS,
+  DISPERSION_LABELS,
+  getBasketShare,
+  getChurnTrend,
+  getNextAction,
+  getPurchaseDispersion,
+  getRiskPercent,
+} from '@/lib/customerDisplay'
 import { formatCurrency, formatRelativeDate, getInitials } from '@/lib/formatters'
-import type { CustomerFilters, SortField } from '@/types/crm'
+import type { CustomerFilters } from '@/types/crm'
+import { cn } from '@/lib/utils'
 
 interface CustomerTableProps {
   filters: CustomerFilters
@@ -21,17 +37,6 @@ interface CustomerTableProps {
 export function CustomerTable({ filters, onFiltersChange }: CustomerTableProps) {
   const navigate = useNavigate()
   const { data, isLoading, isError, refetch } = useCustomers(filters)
-
-  const toggleSort = (field: SortField) => {
-    const current = filters.sortField
-    const dir = filters.sortDirection ?? 'asc'
-    onFiltersChange({
-      ...filters,
-      sortField: field,
-      sortDirection: current === field && dir === 'asc' ? 'desc' : 'asc',
-      page: 1,
-    })
-  }
 
   if (isLoading) return <CustomerTableSkeleton />
   if (isError) return <ErrorState onRetry={() => refetch()} />
@@ -45,121 +50,156 @@ export function CustomerTable({ filters, onFiltersChange }: CustomerTableProps) 
   }
 
   return (
-    <div className="customer-table-wrapper">
-      <table className="customer-table">
-        <thead>
-          <tr>
-            <th>مشتری</th>
-            <th>وضعیت</th>
-            <th>سفارشات</th>
-            <th>
-              <button
-                type="button"
-                className="sort-btn"
-                onClick={() => toggleSort('revenue')}
+    <div className="mt-2">
+      <div className="mb-3.5 flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
+        <span className="font-semibold text-foreground">راهنمای ریسک:</span>
+        <span className="inline-flex items-center gap-1.5">
+          <span className="size-2 rounded-full bg-destructive" />
+          {'>'}60٪
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <span className="size-2 rounded-full bg-amber-500" />
+          30–60٪
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <span className="size-2 rounded-full bg-emerald-600" />
+          {'<'}30٪
+        </span>
+      </div>
+
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>مشتری</TableHead>
+            <TableHead>ریسک</TableHead>
+            <TableHead>سهم از سبد</TableHead>
+            <TableHead>پراکندگی خرید</TableHead>
+            <TableHead>آخرین سفارش</TableHead>
+            <TableHead>LTV</TableHead>
+            <TableHead>روند ریزش</TableHead>
+            <TableHead>اقدام بعدی</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {data.data.map((customer) => {
+            const riskPct = getRiskPercent(customer)
+            const basket = getBasketShare(customer)
+            const dispersion = getPurchaseDispersion(customer)
+            const churn = getChurnTrend(customer)
+            const action = getNextAction(customer)
+
+            const ChurnIcon =
+              churn === 'rising'
+                ? TrendingUp
+                : churn === 'falling'
+                  ? TrendingDown
+                  : Minus
+
+            return (
+              <TableRow
+                key={customer.id}
+                className="cursor-pointer"
+                onClick={() => navigate(`/crm/customers/${customer.id}`)}
               >
-                درآمد <ArrowUpDown size={14} />
-              </button>
-            </th>
-            <th>سود</th>
-            <th>
-              <button
-                type="button"
-                className="sort-btn"
-                onClick={() => toggleSort('lastOrder')}
-              >
-                آخرین سفارش <ArrowUpDown size={14} />
-              </button>
-            </th>
-            <th>پرداخت</th>
-            <th>
-              <button
-                type="button"
-                className="sort-btn"
-                onClick={() => toggleSort('risk')}
-              >
-                ریسک <ArrowUpDown size={14} />
-              </button>
-            </th>
-            <th>عملیات</th>
-          </tr>
-        </thead>
-        <tbody>
-          {data.data.map((customer) => (
-            <tr key={customer.id}>
-              <td>
-                <div className="customer-cell">
-                  <div className="customer-cell__avatar">
-                    {getInitials(customer.name)}
+                <TableCell>
+                  <div className="flex items-center gap-2.5">
+                    <Avatar>
+                      <AvatarFallback>{getInitials(customer.name)}</AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <div className="font-semibold text-card-foreground">
+                        {customer.name}
+                      </div>
+                      <div className="text-xs text-muted-foreground" dir="ltr">
+                        {customer.code}
+                      </div>
+                    </div>
                   </div>
-                  <div>
-                    <div className="customer-cell__name">{customer.name}</div>
-                    <div className="customer-cell__code">{customer.code}</div>
+                </TableCell>
+                <TableCell>
+                  <RiskBar percent={riskPct} />
+                </TableCell>
+                <TableCell>
+                  <div className="flex flex-col gap-1">
+                    <span className="num">{basket.percent}٪</span>
+                    {basket.label !== '—' && (
+                      <span
+                        className={cn(
+                          'w-fit text-[0.68rem] text-muted-foreground',
+                          basket.percent >= 55 &&
+                            'rounded bg-amber-50 px-1.5 py-0.5 text-amber-800',
+                        )}
+                      >
+                        {basket.label}
+                      </span>
+                    )}
                   </div>
-                </div>
-              </td>
-              <td>
-                <StatusBadge
-                  label={CUSTOMER_STATUS_LABELS[customer.status]}
-                  variantKey={customer.status}
-                />
-              </td>
-              <td>{customer.orderCount} سفارش</td>
-              <td className="num">{formatCurrency(customer.totalRevenue)}</td>
-              <td className="num">{formatCurrency(customer.totalProfit)}</td>
-              <td>{formatRelativeDate(customer.lastOrderDate)}</td>
-              <td>
-                <StatusBadge
-                  label={PAYMENT_STATUS_LABELS[customer.paymentStatus]}
-                  variantKey={customer.paymentStatus}
-                />
-              </td>
-              <td>
-                <StatusBadge
-                  label={RISK_LABELS[customer.risk.overall]}
-                  variantKey={customer.risk.overall}
-                />
-              </td>
-              <td>
-                <button
-                  type="button"
-                  className="btn btn--sm btn--ghost"
-                  onClick={() => navigate(`/crm/customers/${customer.id}`)}
-                >
-                  <Eye size={16} />
-                  مشاهده
-                </button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+                </TableCell>
+                <TableCell>
+                  <Badge
+                    variant="outline"
+                    className={
+                      dispersion === 'balanced'
+                        ? 'border-transparent bg-emerald-50 text-emerald-700'
+                        : 'border-transparent bg-amber-50 text-amber-700'
+                    }
+                  >
+                    {DISPERSION_LABELS[dispersion]}
+                  </Badge>
+                </TableCell>
+                <TableCell>{formatRelativeDate(customer.lastOrderDate)}</TableCell>
+                <TableCell className="num">
+                  {formatCurrency(customer.totalProfit)}
+                </TableCell>
+                <TableCell>
+                  <span
+                    className={cn(
+                      'inline-flex items-center gap-1 text-xs font-semibold',
+                      churn === 'rising' && 'text-destructive',
+                      churn === 'stable' && 'text-muted-foreground',
+                      churn === 'falling' && 'text-emerald-600',
+                    )}
+                  >
+                    <ChurnIcon size={14} />
+                    {CHURN_TREND_LABELS[churn]}
+                  </span>
+                </TableCell>
+                <TableCell>
+                  <span className="text-xs leading-snug text-card-foreground">
+                    {action}
+                  </span>
+                </TableCell>
+              </TableRow>
+            )
+          })}
+        </TableBody>
+      </Table>
 
       {data.totalPages > 1 && (
-        <div className="pagination">
-          <button
+        <div className="mt-4 flex items-center justify-center gap-4 border-t pt-4">
+          <Button
             type="button"
-            className="btn btn--secondary"
+            variant="outline"
             disabled={data.page <= 1}
             onClick={() =>
               onFiltersChange({ ...filters, page: (filters.page ?? 1) - 1 })
             }
           >
             قبلی
-          </button>
-          <span className="pagination__info">
+          </Button>
+          <span className="text-sm text-muted-foreground">
             صفحه {data.page} از {data.totalPages} ({data.total} مشتری)
           </span>
-          <button
+          <Button
             type="button"
-            className="btn btn--secondary"
+            variant="outline"
             disabled={data.page >= data.totalPages}
             onClick={() =>
               onFiltersChange({ ...filters, page: (filters.page ?? 1) + 1 })
             }
           >
             بعدی
-          </button>
+          </Button>
         </div>
       )}
     </div>

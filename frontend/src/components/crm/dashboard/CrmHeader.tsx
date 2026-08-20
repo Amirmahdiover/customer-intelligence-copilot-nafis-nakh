@@ -1,24 +1,12 @@
-import { Plus, Download } from 'lucide-react'
-
 export function CrmHeader() {
   return (
-    <header className="crm-page-header">
-      <div>
-        <h1 className="crm-page-header__title">CRM — مدیریت مشتری</h1>
-        <p className="crm-page-header__desc">
-          نمای ۳۶۰ درجه مشتریان، ریسک‌ها و اقدامات پیشنهادی
-        </p>
-      </div>
-      <div className="crm-page-header__actions">
-        <button type="button" className="btn btn--secondary">
-          <Download size={16} />
-          خروجی
-        </button>
-        <button type="button" className="btn btn--primary">
-          <Plus size={16} />
-          مشتری جدید
-        </button>
-      </div>
+    <header className="mb-5">
+      <h1 className="text-[1.35rem] font-bold text-card-foreground">
+        نمای کلی سلامت پرتفوی مشتریان
+      </h1>
+      <p className="mt-1.5 text-sm text-muted-foreground">
+        تحلیل ریسک، فرصت رشد و وضعیت ریزش مشتریان — snapshot 2022-06-30
+      </p>
     </header>
   )
 }

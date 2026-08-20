@@ -1,8 +1,10 @@
+import { Skeleton } from '@/components/ui/skeleton'
+
 export function KpiSkeleton() {
   return (
-    <div className="skeleton-grid skeleton-grid--5">
-      {Array.from({ length: 5 }).map((_, i) => (
-        <div key={i} className="skeleton kpi-skeleton" />
+    <div className="mb-5 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      {Array.from({ length: 4 }).map((_, i) => (
+        <Skeleton key={i} className="h-24" />
       ))}
     </div>
   )
@@ -10,10 +12,10 @@ export function KpiSkeleton() {
 
 export function CustomerTableSkeleton() {
   return (
-    <div className="skeleton-table">
-      <div className="skeleton skeleton-table__header" />
+    <div className="space-y-2">
+      <Skeleton className="h-10" />
       {Array.from({ length: 6 }).map((_, i) => (
-        <div key={i} className="skeleton skeleton-table__row" />
+        <Skeleton key={i} className="h-14" />
       ))}
     </div>
   )
@@ -21,20 +23,20 @@ export function CustomerTableSkeleton() {
 
 export function CustomerHeaderSkeleton() {
   return (
-    <div className="skeleton-customer-header">
-      <div className="skeleton skeleton--circle" />
-      <div className="skeleton-customer-header__text">
-        <div className="skeleton skeleton--line-lg" />
-        <div className="skeleton skeleton--line-sm" />
+    <div className="flex gap-4 p-6">
+      <Skeleton className="size-14 shrink-0 rounded-full" />
+      <div>
+        <Skeleton className="mb-2 h-6 w-52" />
+        <Skeleton className="h-4 w-28" />
       </div>
     </div>
   )
 }
 
 export function OrderSkeleton() {
-  return <div className="skeleton skeleton-order-card" />
+  return <Skeleton className="mb-5 h-52" />
 }
 
 export function SectionSkeleton() {
-  return <div className="skeleton skeleton-section" />
+  return <Skeleton className="mb-5 h-32" />
 }

@@ -5,9 +5,11 @@ interface EmptyStateProps {
 
 export function EmptyState({ title, description }: EmptyStateProps) {
   return (
-    <div className="empty-state">
-      <p className="empty-state__title">{title}</p>
-      {description && <p className="empty-state__desc">{description}</p>}
+    <div className="px-4 py-8 text-center">
+      <p className="mb-1 font-semibold text-card-foreground">{title}</p>
+      {description && (
+        <p className="text-sm text-muted-foreground">{description}</p>
+      )}
     </div>
   )
 }
