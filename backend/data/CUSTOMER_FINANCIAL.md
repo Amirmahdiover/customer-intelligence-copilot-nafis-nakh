@@ -117,7 +117,7 @@ Customer `C_021985`:
   "returned_checks": {
     "has_returned_check": false,
     "count": 0,
-    "last_date": null
+    "last_date": None
   },
   "credit": {
     "limit": 28000,

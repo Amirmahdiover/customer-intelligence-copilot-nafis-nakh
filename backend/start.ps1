@@ -1,5 +1,5 @@
-# Run FastAPI backend from the correct directory
-$BackendRoot = Join-Path $PSScriptRoot "backend\backend"
+# Run FastAPI backend from the backend directory
+$BackendRoot = $PSScriptRoot
 Set-Location $BackendRoot
 
 Write-Host "Starting backend from: $BackendRoot" -ForegroundColor Cyan

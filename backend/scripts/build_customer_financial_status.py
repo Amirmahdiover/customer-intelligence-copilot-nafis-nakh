@@ -1,6 +1,6 @@
 """Build customer financial status datasets from DATASET.xlsx (فروش, وصول, مشتریان).
 
-Usage (from backend/backend/backend):
+Usage (from backend/):
     python scripts/build_customer_financial_status.py
 
 DATASET.xlsx is read-only; this script never modifies it.
