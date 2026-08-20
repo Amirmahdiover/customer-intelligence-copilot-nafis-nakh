@@ -1,0 +1,92 @@
+{
+  "model_path": "offer_accept.joblib",
+  "method": "ml_offer_accept",
+  "label_positive": "قبول",
+  "label_negative": "رد",
+  "customer_numeric": [
+    "Recency_Days",
+    "Days_Since_Last_Order",
+    "Frequency_Orders",
+    "Monetary_Total_Revenue",
+    "R_Score",
+    "F_Score",
+    "M_Score",
+    "Avg_Order_Interval_Days",
+    "Avg_Payment_Delay_Days",
+    "Bounced_Check_Rate",
+    "Lifetime_Years",
+    "Annual_Sales_Trailing12M",
+    "Margin_Pct",
+    "LTV",
+    "Revenue_Share_Pct_Latest",
+    "Revenue_Share_Pct_Avg",
+    "Lifetime_Complaints",
+    "Recent_Complaints_12M",
+    "Risk_Score",
+    "Days_Until_Expected_Next_Order",
+    "Credit_Limit",
+    "Payment_Terms_Days"
+  ],
+  "customer_categorical": [
+    "Customer_Segment",
+    "Customer_Status",
+    "RFM_Segment",
+    "Risk_Level"
+  ],
+  "offer_numeric": [
+    "offer_discount_pct",
+    "validity_days"
+  ],
+  "offer_categorical": [
+    "offer_type",
+    "offer_reason",
+    "product_family"
+  ],
+  "candidate_grid": {
+    "offer_types": [
+      "حجمی",
+      "قیمتی",
+      "مدت‌دار"
+    ],
+    "offer_reasons": [
+      "افزایش حجم سفارش",
+      "معرفی محصول جدید",
+      "تسویه سریع",
+      "افزایش سهم از سبد",
+      "حفظ مشتری کلیدی"
+    ],
+    "product_families": [
+      "Product_Family_03",
+      "Product_Family_04",
+      "Product_Family_05",
+      "Product_Family_02"
+    ],
+    "discount_bins": [
+      0.0179,
+      0.0286,
+      0.0405,
+      0.0481,
+      0.055,
+      0.0653,
+      0.0769
+    ],
+    "validity_days": [
+      11,
+      18,
+      24
+    ]
+  },
+  "metrics": {
+    "n_train": 984,
+    "n_test": 329,
+    "accept_rate_train": 0.48272357723577236,
+    "accept_rate_test": 0.5349544072948328,
+    "auc": 0.5207590612002376,
+    "log_loss": 0.6947045300316775,
+    "brier": 0.25077464401846294
+  },
+  "train_date_min": "2020-01-03",
+  "train_date_max": "2021-08-25",
+  "test_date_min": "2021-08-25",
+  "test_date_max": "2022-06-17"
+}

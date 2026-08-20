@@ -8,6 +8,7 @@ import type {
   OrderStatus,
   PaymentStatus,
   RiskLevel,
+  ValueTier,
 } from '@/types/crm'
 
 export const CUSTOMER_STATUS_LABELS: Record<CustomerStatus, string> = {
@@ -65,6 +66,20 @@ export const ACTION_TYPE_LABELS: Record<ActionType, string> = {
 export const COMPLAINT_STATUS_LABELS: Record<ComplaintStatus, string> = {
   open: 'باز',
   resolved: 'حل‌شده',
+}
+
+export const VALUE_TIER_LABELS: Record<ValueTier, string> = {
+  'شریک طلایی': 'شریک طلایی',
+  'مشتری پایدار': 'مشتری پایدار',
+  'مشتری پرچالش': 'مشتری پرچالش',
+  'مشتری قرمز': 'مشتری قرمز',
+}
+
+export const VALUE_TIER_BADGE_CLASS: Record<ValueTier, string> = {
+  'شریک طلایی': 'border-transparent bg-amber-100 text-amber-800',
+  'مشتری پایدار': 'border-transparent bg-emerald-50 text-emerald-700',
+  'مشتری پرچالش': 'border-transparent bg-amber-50 text-amber-800',
+  'مشتری قرمز': 'border-transparent bg-red-50 text-red-700',
 }
 
 export const COMPLAINT_PRIORITY_LABELS: Record<ComplaintPriority, string> = {

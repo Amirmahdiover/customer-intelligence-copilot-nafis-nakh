@@ -1,6 +1,8 @@
 import { formatCustomerIdWithStatus, parseCustomerInfo } from '@/lib/customerInfo'
 import type {
   ApiActionResponse,
+  ApiBestOfferResponse,
+  ApiChurnResponse,
   ApiComplaintDetail,
   ApiComplaintRecord,
   ApiCrmInteractionItem,
@@ -11,16 +13,21 @@ import type {
   ApiKpiResponse,
   ApiNotDueInvoiceItem,
   ApiNotDueInvoicesResponse,
+  ApiOfferRecommendation,
   ApiReturnedCheckItem,
   ApiReturnedChecksResponse,
   ApiRiskFactor,
   ApiRiskLevel,
   ApiRiskResponse,
+  ApiCustomerValueItem,
 } from '@/types/api'
 import type {
   ActionPriority,
   ActionType,
   AccountStatus,
+  BestOffer,
+  BestOfferItem,
+  CustomerChurn,
   Complaint,
   ComplaintPriority,
   ComplaintStatus,
@@ -39,6 +46,7 @@ import type {
   RecommendedAction,
   ReturnedCheck,
   RiskLevel,
+  ValueTier,
 } from '@/types/crm'
 
 function mapRiskLevel(level?: ApiRiskLevel | null): RiskLevel {
@@ -258,6 +266,18 @@ export function mapCustomerInfoToCustomer(
       overdue: 0,
     },
     lastActivityDate: '2022-06-30',
+  }
+}
+
+export function applyCustomerValue(
+  customer: Customer,
+  value?: ApiCustomerValueItem | null,
+): Customer {
+  if (!value) return customer
+  return {
+    ...customer,
+    valueScore: value.score,
+    valueTier: value.value_tier as ValueTier,
   }
 }
 
@@ -572,6 +592,38 @@ export function mapAction(
       type,
     },
   ]
+}
+
+function mapOfferItem(item: ApiOfferRecommendation): BestOfferItem {
+  return {
+    offerType: item.Offer_Type,
+    offerReason: item.Offer_Reason,
+    productFamily: item.Product_Family ?? null,
+    discountPct: item.Offer_Discount_Pct,
+    validityDays: item.Validity_Days,
+    acceptProbability: item.accept_probability,
+    businessScore: item.business_score,
+  }
+}
+
+export function mapBestOffer(response: ApiBestOfferResponse): BestOffer {
+  return {
+    customerId: response.Customer_ID,
+    method: response.method,
+    best: mapOfferItem(response.best_offer),
+    alternatives: (response.alternatives ?? []).map(mapOfferItem),
+  }
+}
+
+export function mapChurn(response: ApiChurnResponse): CustomerChurn {
+  return {
+    customerId: response.Customer_ID,
+    method: response.method,
+    churnProbability: response.churn_probability,
+    churnPrediction: response.churn_prediction,
+    riskLevel: response.risk_level,
+    snapshotDate: response.snapshot_date ?? null,
+  }
 }
 
 export function buildSyntheticOrder(profile: ApiCustomerProfile): Order | null {

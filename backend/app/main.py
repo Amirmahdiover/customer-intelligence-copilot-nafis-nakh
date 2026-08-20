@@ -8,6 +8,7 @@ Every KPI here (RFM, Margin, Risk, Recommended_Action, ...) is a deterministic
 aggregation or explicit rule — no ML/statistical model is used anywhere.
 """
 from fastapi import FastAPI, HTTPException, Path
+from fastapi.responses import JSONResponse
 
 from backend.app.complaint_store import complaint_store, get_complaint_store
 from backend.app.crm_store import crm_store, get_crm_store
@@ -15,9 +16,14 @@ from backend.app.customer_header_store import customer_header_store, get_custome
 from backend.app.dashboard.routes import router as dashboard_router
 from backend.app.data_loader import SNAPSHOT_DATE, store
 from backend.app.financial_store import financial_store, get_financial_store
+from backend.app.value_store import customer_value_store, get_customer_value_store
+from backend.app.churn_model import ChurnFeaturesNotFound, ChurnModelUnavailable, predict_churn
+from backend.app.offer_model import OfferModelUnavailable, predict_best_offer
 from backend.app.rules import risk_breakdown
 from backend.app.schemas import (
     ActionResponse,
+    BestOfferResponse,
+    ChurnResponse,
     ComplaintsCountResponse,
     CrmInteractionsListResponse,
     CrmLatestResponse,
@@ -31,9 +37,13 @@ from backend.app.schemas import (
     KPIResponse,
     NotDueInvoicesResponse,
     NotDueInvoicesSummary,
+    OfferRecommendation,
     ReturnedChecksResponse,
     ReturnedChecksSummary,
     RiskResponse,
+    CustomerValueItem,
+    CustomerValueListResponse,
+    CustomerValueResponse,
 )
 
 OPENAPI_TAGS = [
@@ -44,6 +54,9 @@ OPENAPI_TAGS = [
     {"name": "Financial", "description": "Customer financial status: outstanding balance, not-due invoices, returned checks, credit utilization, delay cost."},
     {"name": "Risk", "description": "Rule-based risk scoring with a transparent, factor-by-factor breakdown."},
     {"name": "Recommended Actions", "description": "Rule-based next-best-action per customer."},
+    {"name": "Offers", "description": "ML best-offer prediction (type, discount, accept probability) from historical offers."},
+    {"name": "Churn", "description": "ML churn probability (90-day window) from precomputed behavioral features."},
+    {"name": "Value", "description": "0-100 customer value score and four-tier label (شریک طلایی / پایدار / پرچالش / قرمز)."},
 ]
 
 app = FastAPI(
@@ -54,8 +67,8 @@ app = FastAPI(
         f"Recent Complaints) are computed as of **{SNAPSHOT_DATE}** — not the current date, "
         "and not the latest date in the raw data. Lifetime/full-history fields (Margin, LTV, "
         "Lifetime_Complaints, Lifetime_Days) are unbounded by the snapshot.\n\n"
-        "**No ML.** Every value is a deterministic aggregation or an explicit if/then rule; "
-        "there is no statistical or machine-learning model anywhere in this API."
+        "Core KPIs, risk, and actions are deterministic aggregations or explicit rules. "
+        "The optional Offer and Churn endpoints use versioned model artifacts."
     ),
     version="1.0.0",
     openapi_tags=OPENAPI_TAGS,
@@ -70,11 +83,13 @@ def preload_data_stores() -> None:
     complaints = get_complaint_store()
     crm = get_crm_store()
     financial = get_financial_store()
+    values = get_customer_value_store()
     print(
         f"Loaded {len(headers.list_customer_headers())} customers, "
         f"{sum(complaints.count_for_customer(cid) for cid in complaints.customers_with_complaints())} complaints, "
         f"{crm.total_interactions()} CRM interactions, "
-        f"{financial.total_customers()} financial status records."
+        f"{financial.total_customers()} financial status records, "
+        f"{values.total_customers()} value scores."
     )
 
 NOT_FOUND_RESPONSES = {404: {"model": ErrorResponse, "description": "Customer not found"}}
@@ -337,4 +352,109 @@ def get_customer_actions(customer_id: str = CUSTOMER_ID_PATH):
         RFM_Segment=record.get("RFM_Segment"),
         Customer_Status=record.get("Customer_Status"),
         Days_Until_Expected_Next_Order=record.get("Days_Until_Expected_Next_Order"),
+    )
+
+
+@app.get(
+    "/customers/{customer_id}/offers/best",
+    response_model=BestOfferResponse,
+    responses={
+        **NOT_FOUND_RESPONSES,
+        503: {"model": ErrorResponse, "description": "Offer model artifact not available"},
+    },
+    tags=["Offers"],
+    summary="Predict best commercial offer for a customer",
+    description=(
+        "Scores a grid of offer type × reason × discount × validity candidates with an ML "
+        "acceptance model trained on historical offers (قبول vs رد). Returns the top offer "
+        "by business_score = P(accept) × (1 − discount), plus up to two alternatives."
+    ),
+)
+def get_customer_best_offer(customer_id: str = CUSTOMER_ID_PATH):
+    record = _get_customer_or_404(customer_id)
+    try:
+        result = predict_best_offer(record, top_n=3)
+    except OfferModelUnavailable as exc:
+        return JSONResponse(
+            status_code=503,
+            content={"detail": str(exc)},
+        )
+    return BestOfferResponse(
+        Customer_ID=customer_id,
+        method="ml_offer_accept",
+        best_offer=OfferRecommendation(**result["best_offer"]),
+        alternatives=[OfferRecommendation(**a) for a in result["alternatives"]],
+    )
+
+
+def _value_item(record: dict) -> CustomerValueItem:
+    return CustomerValueItem(**record)
+
+
+@app.get(
+    "/value-segments/customers",
+    response_model=CustomerValueListResponse,
+    tags=["Value"],
+    summary="List customer value scores",
+    description="Returns the 0-100 value score and four-tier label for every customer "
+                "(window 2022-01-01 to 2022-06-30).",
+)
+def list_customer_values():
+    records = customer_value_store.list_scores()
+    return CustomerValueListResponse(
+        count=len(records),
+        customers=[_value_item(row) for row in records],
+    )
+
+
+@app.get(
+    "/customers/{customer_id}/value",
+    response_model=CustomerValueResponse,
+    responses=NOT_FOUND_RESPONSES,
+    tags=["Value"],
+    summary="Get one customer value score",
+    description="Returns the 0-100 value score and four-tier label for one customer.",
+)
+def get_customer_value(customer_id: str = CUSTOMER_ID_PATH):
+    _ensure_customer_exists(customer_id)
+    record = customer_value_store.get_score(customer_id)
+    if record is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No value score for customer '{customer_id}'.",
+        )
+    return CustomerValueResponse(**record)
+
+
+@app.get(
+    "/customers/{customer_id}/churn",
+    response_model=ChurnResponse,
+    responses={
+        **NOT_FOUND_RESPONSES,
+        503: {"model": ErrorResponse, "description": "Churn model or feature store not available"},
+    },
+    tags=["Churn"],
+    summary="Predict churn probability for a customer",
+    description=(
+        "Uses a LogisticRegression model trained on behavioral features "
+        "(recency, frequency windows, offers, collections, wallet share). "
+        "Features are looked up from the latest precomputed snapshot per customer."
+    ),
+)
+def get_customer_churn(customer_id: str = CUSTOMER_ID_PATH):
+    # Ensure customer exists in the main analytics header/set
+    _get_customer_or_404(customer_id)
+    try:
+        result = predict_churn(customer_id)
+    except ChurnModelUnavailable as exc:
+        return JSONResponse(status_code=503, content={"detail": str(exc)})
+    except ChurnFeaturesNotFound as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return ChurnResponse(
+        Customer_ID=customer_id,
+        method="ml_churn",
+        churn_probability=result["churn_probability"],
+        churn_prediction=result["churn_prediction"],
+        risk_level=result["risk_level"],
+        snapshot_date=result.get("snapshot_date"),
     )

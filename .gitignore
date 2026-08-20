@@ -8,6 +8,7 @@ __pycache__/
 *.py[cod]
 *.pyc
 *.pyo
+.Python
 .venv/
 venv/
 .pytest_cache/
@@ -15,6 +16,10 @@ venv/
 .ruff_cache/
 .coverage
 htmlcov/
+
+# Excel/Office temporary lock files
+~$*
+*.tmp
 
 # Node and frontend build output
 node_modules/

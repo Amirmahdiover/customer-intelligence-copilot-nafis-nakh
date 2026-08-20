@@ -1,6 +1,11 @@
 export type ApiCustomerStatus = 'فعال' | 'غیرفعال'
 export type ApiRiskLevel = 'Low' | 'Medium' | 'High' | 'Critical' | 'Not Yet Active'
 export type ApiCustomerSegment = 'A' | 'B' | 'C'
+export type ApiValueTier =
+  | 'شریک طلایی'
+  | 'مشتری پایدار'
+  | 'مشتری پرچالش'
+  | 'مشتری قرمز'
 export type ApiRfmSegment =
   | 'Champions'
   | 'Loyal Customers'
@@ -140,6 +145,32 @@ export interface ApiActionResponse {
   method: 'rule_based'
 }
 
+export interface ApiOfferRecommendation {
+  Offer_Type: string
+  Offer_Reason: string
+  Product_Family?: string | null
+  Offer_Discount_Pct: number
+  Validity_Days: number
+  accept_probability: number
+  business_score: number
+}
+
+export interface ApiBestOfferResponse {
+  Customer_ID: string
+  method: 'ml_offer_accept'
+  best_offer: ApiOfferRecommendation
+  alternatives: ApiOfferRecommendation[]
+}
+
+export interface ApiChurnResponse {
+  Customer_ID: string
+  method: 'ml_churn'
+  churn_probability: number
+  churn_prediction: number
+  risk_level: 'پایین' | 'متوسط' | 'بالا'
+  snapshot_date?: string | null
+}
+
 export interface ApiCrmLatestResponse {
   customer_id: string
   next_action?: string | null
@@ -258,6 +289,27 @@ export interface ApiComplaintsResponse {
   Recent_Complaints_12M?: number | null
   Biggest_Problem?: string | null
   complaints: ApiComplaintRecord[]
+}
+
+export interface ApiCustomerValueItem {
+  customer_id: string
+  score: number
+  value_tier: ApiValueTier
+  monetary?: number | null
+  sow?: number | null
+  margin?: number | null
+  on_time?: number | null
+  check_quality?: number | null
+  frequency?: number | null
+  recency?: number | null
+  trend?: number | null
+  offer_accept?: number | null
+  growth_capacity?: number | null
+}
+
+export interface ApiCustomerValueListResponse {
+  count: number
+  customers: ApiCustomerValueItem[]
 }
 
 export interface ApiListParams {

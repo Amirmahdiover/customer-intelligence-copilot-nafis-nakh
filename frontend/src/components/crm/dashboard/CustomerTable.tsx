@@ -30,6 +30,7 @@ import { formatCustomerIdWithStatus } from '@/lib/customerInfo'
 import { ACCOUNT_STATUS_LABELS } from '@/lib/constants'
 import type { CustomerFilters } from '@/types/crm'
 import { cn } from '@/lib/utils'
+import { ValueTierBadge } from '@/components/crm/shared/ValueTierBadge'
 
 interface CustomerTableProps {
   filters: CustomerFilters
@@ -112,18 +113,24 @@ export function CustomerTable({ filters, onFiltersChange }: CustomerTableProps) 
                       <div className="font-semibold text-card-foreground" dir="ltr">
                         {formatCustomerIdWithStatus(customer.code, customer.accountStatus)}
                       </div>
+                      <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                        <ValueTierBadge
+                          score={customer.valueScore}
+                          tier={customer.valueTier}
+                        />
                       {customer.accountStatus && (
                         <Badge
                           variant="outline"
                           className={
                             customer.accountStatus === 'فعال'
-                              ? 'mt-1 border-transparent bg-emerald-50 text-emerald-700'
-                              : 'mt-1 border-transparent bg-muted text-muted-foreground'
+                              ? 'border-transparent bg-emerald-50 text-emerald-700'
+                              : 'border-transparent bg-muted text-muted-foreground'
                           }
                         >
                           {ACCOUNT_STATUS_LABELS[customer.accountStatus]}
                         </Badge>
                       )}
+                      </div>
                     </div>
                   </div>
                 </TableCell>
