@@ -118,18 +118,18 @@ export function CustomerTable({ filters, onFiltersChange }: CustomerTableProps) 
                           score={customer.valueScore}
                           tier={customer.valueTier}
                         />
-                      {customer.accountStatus && (
-                        <Badge
-                          variant="outline"
-                          className={
-                            customer.accountStatus === 'فعال'
-                              ? 'border-transparent bg-emerald-50 text-emerald-700'
-                              : 'border-transparent bg-muted text-muted-foreground'
-                          }
-                        >
-                          {ACCOUNT_STATUS_LABELS[customer.accountStatus]}
-                        </Badge>
-                      )}
+                        {customer.accountStatus && (
+                          <Badge
+                            variant="outline"
+                            className={
+                              customer.accountStatus === 'فعال'
+                                ? 'border-transparent bg-emerald-50 text-emerald-700'
+                                : 'border-transparent bg-muted text-muted-foreground'
+                            }
+                          >
+                            {ACCOUNT_STATUS_LABELS[customer.accountStatus]}
+                          </Badge>
+                        )}
                       </div>
                     </div>
                   </div>
