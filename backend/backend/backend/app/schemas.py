@@ -34,7 +34,40 @@ class ErrorResponse(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# /customers
+# /customers — customer_info header pipeline
+# ---------------------------------------------------------------------------
+
+class CustomerHeaderItem(BaseModel):
+    customer_info: str = Field(
+        ...,
+        description="Combined identity fields: Customer_ID,Customer_Segment,Customer_Status.",
+    )
+
+    model_config = ConfigDict(json_schema_extra={"example": {"customer_info": "C_010649,B,فعال"}})
+
+
+class CustomerHeaderListResponse(BaseModel):
+    customers: list[CustomerHeaderItem]
+
+    model_config = ConfigDict(json_schema_extra={"example": {
+        "customers": [
+            {"customer_info": "C_010649,B,فعال"},
+            {"customer_info": "C_009817,B,غیرفعال"},
+        ],
+    }})
+
+
+class CustomerHeaderResponse(BaseModel):
+    customer_info: str = Field(
+        ...,
+        description="Combined identity fields: Customer_ID,Customer_Segment,Customer_Status.",
+    )
+
+    model_config = ConfigDict(json_schema_extra={"example": {"customer_info": "C_010649,B,فعال"}})
+
+
+# ---------------------------------------------------------------------------
+# /customers — legacy analytics list/profile (used by sub-endpoints)
 # ---------------------------------------------------------------------------
 
 class CustomerSummary(BaseModel):

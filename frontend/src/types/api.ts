@@ -10,6 +10,18 @@ export type ApiRfmSegment =
   | 'Lost / Churned'
   | 'No Activity (Pre-Onboarding as of Snapshot)'
 
+export interface ApiCustomerHeaderItem {
+  customer_info: string
+}
+
+export interface ApiCustomerHeaderListResponse {
+  customers: ApiCustomerHeaderItem[]
+}
+
+export interface ApiCustomerHeaderResponse {
+  customer_info: string
+}
+
 export interface ApiCustomerSummary {
   Customer_ID: string
   Customer_Segment?: ApiCustomerSegment | null
@@ -58,6 +70,40 @@ export interface ApiCustomerProfile extends ApiCustomerSummary {
   Days_Until_Expected_Next_Order?: number | null
   Risk_Score?: number | null
   Recommended_Action?: string | null
+}
+
+export interface ApiKpiResponse {
+  Customer_ID: string
+  Recency_Days?: number | null
+  Days_Since_Last_Order?: number | null
+  Frequency_Orders?: number | null
+  Monetary_Total_Revenue?: number | null
+  R_Score?: number | null
+  F_Score?: number | null
+  M_Score?: number | null
+  RFM_Score?: string | null
+  RFM_Segment?: ApiRfmSegment | null
+  Last_Order_Date?: string | null
+  First_Order_Date?: string | null
+  Avg_Order_Interval_Days?: number | null
+  Order_Interval_Std_Days?: number | null
+  Avg_Payment_Delay_Days?: number | null
+  Max_Payment_Delay_Days?: number | null
+  Bounced_Check_Rate?: number | null
+  Lifetime_Days?: number | null
+  Lifetime_Years?: number | null
+  Annual_Sales_Trailing12M?: number | null
+  Revenue_Total_Lifetime?: number | null
+  Cost_Total_Lifetime?: number | null
+  Margin_Total_Lifetime?: number | null
+  Margin_Pct?: number | null
+  Margin_Confidence?: string | null
+  LTV?: number | null
+  Revenue_Share_As_Of_Month?: string | null
+  Revenue_Share_Pct_Latest?: number | null
+  Revenue_Share_Pct_Avg?: number | null
+  Expected_Next_Order_Date?: string | null
+  Days_Until_Expected_Next_Order?: number | null
 }
 
 export interface ApiCustomerListResponse {

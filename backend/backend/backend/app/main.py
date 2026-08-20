@@ -7,28 +7,23 @@ DATASET.xlsx is opened read-only and never modified.
 Every KPI here (RFM, Margin, Risk, Recommended_Action, ...) is a deterministic
 aggregation or explicit rule — no ML/statistical model is used anywhere.
 """
-from typing import Optional
+from fastapi import FastAPI, HTTPException, Path
 
-from fastapi import FastAPI, HTTPException, Path, Query
-
+from app.customer_header_store import customer_header_store
 from app.data_loader import SNAPSHOT_DATE, store
 from app.rules import risk_breakdown
 from app.schemas import (
     ActionResponse,
     ComplaintsResponse,
-    CustomerListResponse,
-    CustomerProfile,
-    CustomerSegment,
-    CustomerStatus,
+    CustomerHeaderListResponse,
+    CustomerHeaderResponse,
     ErrorResponse,
     KPIResponse,
-    RFMSegment,
-    RiskLevel,
     RiskResponse,
 )
 
 OPENAPI_TAGS = [
-    {"name": "Customers", "description": "Customer master data and full analytics profile."},
+    {"name": "Customers", "description": "Customer identity header (customer_info) from customer_header.csv."},
     {"name": "KPIs", "description": "RFM, order pattern, delay, lifetime, margin, LTV, and revenue-share metrics."},
     {"name": "Complaints", "description": "Complaint history and detail records."},
     {"name": "Risk", "description": "Rule-based risk scoring with a transparent, factor-by-factor breakdown."},
@@ -68,45 +63,29 @@ def _get_customer_or_404(customer_id: str) -> dict:
 
 @app.get(
     "/customers",
-    response_model=CustomerListResponse,
+    response_model=CustomerHeaderListResponse,
     tags=["Customers"],
-    summary="List customers",
-    description="Paginated, filterable list of customer summaries. Use the full-profile "
-                "endpoint (`GET /customers/{customer_id}`) for all fields on one customer.",
+    summary="List all customers (header info)",
+    description="Returns every customer as a single combined `customer_info` string "
+                "(`Customer_ID,Customer_Segment,Customer_Status`) loaded from customer_header.csv.",
 )
-def list_customers(
-    skip: int = Query(0, ge=0, description="Number of records to skip.", examples=[0]),
-    limit: int = Query(50, ge=1, le=500, description="Max records to return.", examples=[50]),
-    customer_status: Optional[CustomerStatus] = Query(None, description="Filter: exact Customer_Status."),
-    risk_level: Optional[RiskLevel] = Query(None, description="Filter: exact Risk_Level."),
-    rfm_segment: Optional[RFMSegment] = Query(None, description="Filter: exact RFM_Segment."),
-    customer_segment: Optional[CustomerSegment] = Query(None, description="Filter: exact Customer_Segment."),
-):
-    records, total = store.list_customers(
-        filters={
-            "customer_status": customer_status,
-            "risk_level": risk_level,
-            "rfm_segment": rfm_segment,
-            "customer_segment": customer_segment,
-        },
-        skip=skip,
-        limit=limit,
-    )
-    return CustomerListResponse(total=total, skip=skip, limit=limit, count=len(records), items=records)
+def list_customers():
+    return CustomerHeaderListResponse(customers=customer_header_store.list_customer_headers())
 
 
 @app.get(
     "/customers/{customer_id}",
-    response_model=CustomerProfile,
+    response_model=CustomerHeaderResponse,
     responses=NOT_FOUND_RESPONSES,
     tags=["Customers"],
-    summary="Get full customer profile",
-    description="Every field in the analytics dataset for one customer — identity, RFM, "
-                "order pattern, delay, lifetime, margin/LTV, revenue share, complaints, "
-                "next order, risk, and recommended action.",
+    summary="Get one customer (header info)",
+    description="Returns the combined `customer_info` string for one customer by Customer_ID.",
 )
 def get_customer(customer_id: str = CUSTOMER_ID_PATH):
-    return _get_customer_or_404(customer_id)
+    customer_info = customer_header_store.get_customer_header(customer_id)
+    if customer_info is None:
+        raise HTTPException(status_code=404, detail=f"Customer '{customer_id}' not found")
+    return CustomerHeaderResponse(customer_info=customer_info)
 
 
 @app.get(

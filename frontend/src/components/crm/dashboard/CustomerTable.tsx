@@ -26,6 +26,8 @@ import {
   getRiskPercent,
 } from '@/lib/customerDisplay'
 import { formatCurrency, formatRelativeDate, getInitials } from '@/lib/formatters'
+import { formatCustomerIdWithStatus } from '@/lib/customerInfo'
+import { ACCOUNT_STATUS_LABELS } from '@/lib/constants'
 import type { CustomerFilters } from '@/types/crm'
 import { cn } from '@/lib/utils'
 
@@ -104,15 +106,24 @@ export function CustomerTable({ filters, onFiltersChange }: CustomerTableProps) 
                 <TableCell>
                   <div className="flex items-center gap-2.5">
                     <Avatar>
-                      <AvatarFallback>{getInitials(customer.name)}</AvatarFallback>
+                      <AvatarFallback>{getInitials(customer.code)}</AvatarFallback>
                     </Avatar>
                     <div>
-                      <div className="font-semibold text-card-foreground">
-                        {customer.name}
+                      <div className="font-semibold text-card-foreground" dir="ltr">
+                        {formatCustomerIdWithStatus(customer.code, customer.accountStatus)}
                       </div>
-                      <div className="text-xs text-muted-foreground" dir="ltr">
-                        {customer.code}
-                      </div>
+                      {customer.accountStatus && (
+                        <Badge
+                          variant="outline"
+                          className={
+                            customer.accountStatus === 'فعال'
+                              ? 'mt-1 border-transparent bg-emerald-50 text-emerald-700'
+                              : 'mt-1 border-transparent bg-muted text-muted-foreground'
+                          }
+                        >
+                          {ACCOUNT_STATUS_LABELS[customer.accountStatus]}
+                        </Badge>
+                      )}
                     </div>
                   </div>
                 </TableCell>

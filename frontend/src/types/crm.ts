@@ -1,4 +1,5 @@
 export type CustomerStatus = 'healthy' | 'watch' | 'high-risk'
+export type AccountStatus = 'فعال' | 'غیرفعال' | ''
 export type RiskLevel = 'low' | 'medium' | 'high'
 export type PaymentStatus = 'paid' | 'pending' | 'overdue'
 export type OrderStatus =
@@ -57,6 +58,8 @@ export interface Customer {
   id: string
   name: string
   code: string
+  /** Raw Customer_Status from API: فعال | غیرفعال */
+  accountStatus: AccountStatus
   email: string
   phone: string
   status: CustomerStatus

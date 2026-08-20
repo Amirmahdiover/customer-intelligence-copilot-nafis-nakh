@@ -7,7 +7,8 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { useCustomer } from '@/hooks/crm/useCrmQueries'
-import { CUSTOMER_STATUS_LABELS } from '@/lib/constants'
+import { ACCOUNT_STATUS_LABELS, CUSTOMER_STATUS_LABELS } from '@/lib/constants'
+import { formatCustomerIdWithStatus } from '@/lib/customerInfo'
 import { formatRelativeDate, getInitials } from '@/lib/formatters'
 import { useToast } from '@/components/crm/shared/Toast'
 
@@ -41,18 +42,26 @@ export function CustomerHeader({ customerId }: CustomerHeaderProps) {
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div className="flex items-start gap-4">
             <Avatar className="size-14 text-base">
-              <AvatarFallback>{getInitials(customer.name)}</AvatarFallback>
+              <AvatarFallback>{getInitials(customer.code)}</AvatarFallback>
             </Avatar>
             <div>
-              <h1 className="text-[1.35rem] font-bold text-card-foreground">
-                {customer.name}
+              <h1 className="text-[1.35rem] font-bold text-card-foreground" dir="ltr">
+                {formatCustomerIdWithStatus(customer.code, customer.accountStatus)}
               </h1>
               <p className="mt-0.5 text-sm text-muted-foreground">
-                کد مشتری: {customer.code}
-                {customer.email !== '—' && ` · ${customer.email}`}
-                {customer.phone !== '—' && ` · ${customer.phone}`}
+                {customer.email !== '—' && customer.email}
+                {customer.email !== '—' && customer.phone !== '—' && ' · '}
+                {customer.phone !== '—' && customer.phone}
               </p>
               <div className="mt-2 flex flex-wrap items-center gap-3">
+                {customer.accountStatus && (
+                  <StatusBadge
+                    label={ACCOUNT_STATUS_LABELS[customer.accountStatus]}
+                    variantKey={
+                      customer.accountStatus === 'فعال' ? 'healthy' : 'high-risk'
+                    }
+                  />
+                )}
                 <StatusBadge
                   label={CUSTOMER_STATUS_LABELS[customer.status]}
                   variantKey={customer.status}

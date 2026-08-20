@@ -1,8 +1,10 @@
+import { formatCustomerIdWithStatus, parseCustomerInfo } from '@/lib/customerInfo'
 import type {
   ApiActionResponse,
   ApiComplaintRecord,
   ApiCustomerProfile,
   ApiCustomerSummary,
+  ApiKpiResponse,
   ApiRiskFactor,
   ApiRiskLevel,
   ApiRiskResponse,
@@ -10,6 +12,7 @@ import type {
 import type {
   ActionPriority,
   ActionType,
+  AccountStatus,
   Complaint,
   ComplaintPriority,
   ComplaintStatus,
@@ -149,6 +152,102 @@ function mapComplaintPriority(severity?: string | null): ComplaintPriority {
   return 'medium'
 }
 
+function mapStatusFromHeader(
+  status: string,
+  segment: string,
+  riskLevel?: ApiRiskLevel | null,
+): CustomerStatus {
+  if (riskLevel === 'Critical' || riskLevel === 'High') return 'high-risk'
+  if (status === 'غیرفعال') return 'high-risk'
+  if (riskLevel === 'Medium' || segment === 'C') return 'watch'
+  return 'healthy'
+}
+
+export function buildProfileFromParts(
+  customerInfo: string,
+  kpis?: ApiKpiResponse,
+  risk?: ApiRiskResponse,
+): ApiCustomerProfile {
+  const header = parseCustomerInfo(customerInfo)
+  return {
+    Customer_ID: header.customerId,
+    Customer_Segment: header.segment || undefined,
+    Customer_Status: header.status || undefined,
+    Risk_Level: risk?.Risk_Level ?? undefined,
+    Risk_Score: risk?.Risk_Score ?? undefined,
+    ...(kpis ?? {}),
+  }
+}
+
+function normalizeAccountStatus(
+  status?: string | null,
+): AccountStatus {
+  if (status === 'فعال' || status === 'غیرفعال') return status
+  return ''
+}
+
+export function mapCustomerInfoToCustomer(
+  customerInfo: string,
+  kpis?: ApiKpiResponse,
+  risk?: ApiRiskResponse,
+): Customer {
+  const header = parseCustomerInfo(customerInfo)
+  const accountStatus = normalizeAccountStatus(header.status)
+  const displayLabel = formatCustomerIdWithStatus(header.customerId, accountStatus)
+
+  const profile = buildProfileFromParts(customerInfo, kpis, risk)
+  if (kpis || risk) {
+    return {
+      ...mapProfileToCustomer(profile, risk),
+      accountStatus,
+      name: displayLabel,
+      code: header.customerId,
+    }
+  }
+
+  const uiStatus = mapStatusFromHeader(header.status, header.segment)
+
+  return {
+    id: header.customerId,
+    name: displayLabel,
+    code: header.customerId,
+    accountStatus,
+    email: header.segment ? `بخش ${header.segment}` : '—',
+    phone: '—',
+    status: uiStatus,
+    totalRevenue: 0,
+    totalProfit: 0,
+    orderCount: 0,
+    averageOrderValue: 0,
+    lastOrderDate: '2022-06-30',
+    typicalOrderInterval: 30,
+    paymentStatus: header.status === 'غیرفعال' ? 'overdue' : 'paid',
+    orderStatus: header.status === 'فعال' ? 'delivered' : 'no-active',
+    risk: {
+      financial: header.status === 'غیرفعال' ? 'high' : 'low',
+      relationship: 'low',
+      commercial: header.segment === 'C' ? 'medium' : 'low',
+      overall:
+        uiStatus === 'high-risk'
+          ? 'high'
+          : uiStatus === 'watch'
+            ? 'medium'
+            : 'low',
+    },
+    favoriteProducts: header.segment
+      ? [{ name: `بخش ${header.segment}`, percentage: 100 }]
+      : [],
+    revenueTrend: [],
+    payment: {
+      totalRevenue: 0,
+      paid: 0,
+      pending: 0,
+      overdue: 0,
+    },
+    lastActivityDate: '2022-06-30',
+  }
+}
+
 export function mapSummaryToCustomer(summary: ApiCustomerSummary): Customer {
   const profile = summary as ApiCustomerProfile
   const revenue = summary.Monetary_Total_Revenue ?? 0
@@ -157,10 +256,12 @@ export function mapSummaryToCustomer(summary: ApiCustomerSummary): Customer {
 
   return {
     id: summary.Customer_ID,
-    name: summary.Customer_Segment
-      ? `مشتری ${summary.Customer_Segment} — ${summary.Customer_ID}`
-      : `مشتری ${summary.Customer_ID}`,
+    name: formatCustomerIdWithStatus(
+      summary.Customer_ID,
+      normalizeAccountStatus(summary.Customer_Status),
+    ),
     code: summary.Customer_ID,
+    accountStatus: normalizeAccountStatus(summary.Customer_Status),
     email: summary.Sales_Rep_ID ? `نماینده: ${summary.Sales_Rep_ID}` : '—',
     phone: summary.Location_ID ? `موقعیت: ${summary.Location_ID}` : '—',
     status: mapCustomerStatus(summary),

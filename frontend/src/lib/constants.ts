@@ -16,6 +16,11 @@ export const CUSTOMER_STATUS_LABELS: Record<CustomerStatus, string> = {
   'high-risk': 'ریسک بالا',
 }
 
+export const ACCOUNT_STATUS_LABELS: Record<'فعال' | 'غیرفعال', string> = {
+  فعال: 'فعال',
+  غیرفعال: 'غیرفعال',
+}
+
 export const RISK_LABELS: Record<RiskLevel, string> = {
   low: 'پایین',
   medium: 'متوسط',

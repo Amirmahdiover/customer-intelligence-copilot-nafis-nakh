@@ -1,19 +1,19 @@
 import { apiFetch } from '@/lib/api'
+import { parseCustomerInfo } from '@/lib/customerInfo'
 import {
   buildInsights,
+  buildProfileFromParts,
   buildSyntheticOrder,
   mapAction,
   mapComplaint,
-  mapProfileToCustomer,
-  mapSummaryToCustomer,
+  mapCustomerInfoToCustomer,
 } from '@/services/crm/api.mapper'
 import type {
   ApiActionResponse,
   ApiComplaintsResponse,
-  ApiCustomerListResponse,
-  ApiCustomerProfile,
-  ApiListParams,
-  ApiRiskLevel,
+  ApiCustomerHeaderListResponse,
+  ApiCustomerHeaderResponse,
+  ApiKpiResponse,
   ApiRiskResponse,
 } from '@/types/api'
 import type {
@@ -30,32 +30,30 @@ import type {
 
 const RISK_ORDER: Record<RiskLevel, number> = { low: 1, medium: 2, high: 3 }
 
-function mapFrontendRiskToApi(risk: RiskLevel): ApiRiskLevel {
-  const map: Record<RiskLevel, ApiRiskLevel> = {
-    low: 'Low',
-    medium: 'Medium',
-    high: 'High',
-  }
-  return map[risk]
+async function fetchAllCustomerHeaders(): Promise<string[]> {
+  const response = await apiFetch<ApiCustomerHeaderListResponse>('/customers')
+  return response.customers.map((item) => item.customer_info)
 }
 
-async function fetchAllSummaries(params: ApiListParams = {}): Promise<ApiCustomerListResponse['items']> {
-  const pageSize = 500
-  const first = await apiFetch<ApiCustomerListResponse>('/customers', {
-    skip: 0,
-    limit: pageSize,
-    ...params,
-  })
+async function enrichCustomer(
+  customerInfo: string,
+): Promise<Customer> {
+  const { customerId } = parseCustomerInfo(customerInfo)
+  const [kpis, risk] = await Promise.all([
+    apiFetch<ApiKpiResponse>(`/customers/${encodeURIComponent(customerId)}/kpis`).catch(
+      () => undefined,
+    ),
+    apiFetch<ApiRiskResponse>(`/customers/${encodeURIComponent(customerId)}/risk`).catch(
+      () => undefined,
+    ),
+  ])
+  return mapCustomerInfoToCustomer(customerInfo, kpis, risk)
+}
 
-  if (first.total <= pageSize) return first.items
-
-  const second = await apiFetch<ApiCustomerListResponse>('/customers', {
-    skip: pageSize,
-    limit: pageSize,
-    ...params,
-  })
-
-  return [...first.items, ...second.items]
+async function enrichCustomers(
+  customerInfos: string[],
+): Promise<Customer[]> {
+  return Promise.all(customerInfos.map(enrichCustomer))
 }
 
 function applyClientFilters(
@@ -135,42 +133,39 @@ function paginate<T>(
 }
 
 export async function getCrmOverview(): Promise<CrmOverview> {
-  const [all, highRisk, critical] = await Promise.all([
-    apiFetch<ApiCustomerListResponse>('/customers', { skip: 0, limit: 1 }),
-    apiFetch<ApiCustomerListResponse>('/customers', {
-      skip: 0,
-      limit: 500,
-      risk_level: 'High',
-    }),
-    apiFetch<ApiCustomerListResponse>('/customers', {
-      skip: 0,
-      limit: 500,
-      risk_level: 'Critical',
-    }),
-  ])
+  const headers = await fetchAllCustomerHeaders()
+  const parsed = headers.map(parseCustomerInfo)
 
-  const active = await apiFetch<ApiCustomerListResponse>('/customers', {
-    skip: 0,
-    limit: 1,
-    customer_status: 'فعال',
-  })
+  const totalCustomers = parsed.length
+  const activeCustomers = parsed.filter((p) => p.status === 'فعال').length
+  const atRiskCustomers = parsed.filter((p) => p.status === 'غیرفعال').length
 
-  const sample = await fetchAllSummaries()
-  const totalRevenue = sample.reduce(
-    (sum, c) => sum + (c.Monetary_Total_Revenue ?? 0),
-    0,
-  )
-  const outstanding = sample
-    .filter((c) => c.Risk_Level === 'High' || c.Risk_Level === 'Critical')
-    .reduce((sum, c) => sum + (c.Monetary_Total_Revenue ?? 0) * 0.08, 0)
+  const sampleSize = Math.min(40, headers.length)
+  const sample = headers.slice(0, sampleSize)
+  const enrichedSample = await enrichCustomers(sample)
+
+  const sampleRevenue = enrichedSample.reduce((sum, c) => sum + c.totalRevenue, 0)
+  const totalRevenue =
+    sampleSize > 0
+      ? Math.round((sampleRevenue / sampleSize) * totalCustomers)
+      : 0
+
+  const outstandingPayments = enrichedSample
+    .filter((c) => c.risk.overall === 'high')
+    .reduce((sum, c) => sum + c.totalRevenue * 0.08, 0)
+
+  const scale =
+    atRiskCustomers > 0
+      ? atRiskCustomers / Math.max(1, enrichedSample.filter((c) => c.risk.overall === 'high').length)
+      : 1
 
   return {
-    totalCustomers: all.total,
-    newCustomersThisMonth: Math.round(all.total * 0.05),
-    activeCustomers: active.total,
-    atRiskCustomers: highRisk.total + critical.total,
+    totalCustomers,
+    newCustomersThisMonth: Math.round(totalCustomers * 0.05),
+    activeCustomers,
+    atRiskCustomers,
     totalRevenue,
-    outstandingPayments: outstanding,
+    outstandingPayments: Math.round(outstandingPayments * scale),
   }
 }
 
@@ -179,64 +174,51 @@ export async function getCustomers(
 ): Promise<PaginatedResult<Customer>> {
   const page = filters.page ?? 1
   const limit = filters.limit ?? 10
+  const headers = await fetchAllCustomerHeaders()
 
-  const needsClientFilter =
-    !!filters.search ||
-    (filters.status && filters.status !== 'all') ||
-    (filters.paymentStatus && filters.paymentStatus !== 'all') ||
-    (filters.orderStatus && filters.orderStatus !== 'all') ||
-    !!filters.sortField
-
-  const apiParams: ApiListParams = {
-    limit: needsClientFilter ? 500 : limit,
-    skip: needsClientFilter ? 0 : (page - 1) * limit,
-  }
-
-  if (filters.risk && filters.risk !== 'all') {
-    apiParams.risk_level = mapFrontendRiskToApi(filters.risk)
-  }
-
-  let items: Customer[]
-
-  if (needsClientFilter) {
-    const summaries = await fetchAllSummaries(apiParams)
-    items = summaries.map(mapSummaryToCustomer)
-    items = applyClientFilters(items, filters)
-    return paginate(items, page, limit)
-  }
-
-  const response = await apiFetch<ApiCustomerListResponse>('/customers', {
-    skip: apiParams.skip,
-    limit: apiParams.limit,
-    risk_level: apiParams.risk_level,
+  const baseCustomers = headers.map((info) => mapCustomerInfoToCustomer(info))
+  const filtered = applyClientFilters(baseCustomers, filters)
+  const pageSlice = paginate(filtered, page, limit)
+  const pageHeaders = pageSlice.data.map((c) => {
+    const header = headers.find((h) => parseCustomerInfo(h).customerId === c.id)
+    return header ?? `${c.id},,`
   })
 
-  items = response.items.map(mapSummaryToCustomer)
+  const enrichedPage = await enrichCustomers(pageHeaders)
 
   return {
-    data: items,
-    total: response.total,
-    page,
-    limit,
-    totalPages: Math.ceil(response.total / limit),
+    ...pageSlice,
+    data: enrichedPage,
   }
 }
 
 export async function getCustomerById(id: string): Promise<Customer> {
-  const [profile, risk] = await Promise.all([
-    apiFetch<ApiCustomerProfile>(`/customers/${encodeURIComponent(id)}`),
+  const header = await apiFetch<ApiCustomerHeaderResponse>(
+    `/customers/${encodeURIComponent(id)}`,
+  )
+
+  const [kpis, risk] = await Promise.all([
+    apiFetch<ApiKpiResponse>(`/customers/${encodeURIComponent(id)}/kpis`).catch(
+      () => undefined,
+    ),
     apiFetch<ApiRiskResponse>(`/customers/${encodeURIComponent(id)}/risk`).catch(
       () => undefined,
     ),
   ])
 
-  return mapProfileToCustomer(profile, risk)
+  return mapCustomerInfoToCustomer(header.customer_info, kpis, risk)
 }
 
 export async function getCustomerOrders(id: string): Promise<Order[]> {
-  const profile = await apiFetch<ApiCustomerProfile>(
+  const kpis = await apiFetch<ApiKpiResponse>(
+    `/customers/${encodeURIComponent(id)}/kpis`,
+  ).catch(() => undefined)
+
+  const header = await apiFetch<ApiCustomerHeaderResponse>(
     `/customers/${encodeURIComponent(id)}`,
-  )
+  ).catch(() => ({ customer_info: `${id},,` }))
+
+  const profile = buildProfileFromParts(header.customer_info, kpis)
   const synthetic = buildSyntheticOrder(profile)
   return synthetic ? [synthetic] : []
 }
@@ -249,60 +231,68 @@ export async function getCustomerComplaints(id: string): Promise<Complaint[]> {
 }
 
 export async function getCustomerInsights(id: string): Promise<Insight[]> {
-  const [profile, risk] = await Promise.all([
-    apiFetch<ApiCustomerProfile>(`/customers/${encodeURIComponent(id)}`),
+  const [header, kpis, risk] = await Promise.all([
+    apiFetch<ApiCustomerHeaderResponse>(`/customers/${encodeURIComponent(id)}`),
+    apiFetch<ApiKpiResponse>(`/customers/${encodeURIComponent(id)}/kpis`).catch(
+      () => undefined,
+    ),
     apiFetch<ApiRiskResponse>(`/customers/${encodeURIComponent(id)}/risk`).catch(
       () => undefined,
     ),
   ])
+
+  const profile = buildProfileFromParts(header.customer_info, kpis, risk)
   return buildInsights(profile, risk)
 }
 
 export async function getCustomerActions(
   id: string,
 ): Promise<RecommendedAction[]> {
-  const [action, profile] = await Promise.all([
+  const [action, header, kpis] = await Promise.all([
     apiFetch<ApiActionResponse>(`/customers/${encodeURIComponent(id)}/actions`),
-    apiFetch<ApiCustomerProfile>(`/customers/${encodeURIComponent(id)}`).catch(
+    apiFetch<ApiCustomerHeaderResponse>(`/customers/${encodeURIComponent(id)}`).catch(
+      () => ({ customer_info: `${id},,` }),
+    ),
+    apiFetch<ApiKpiResponse>(`/customers/${encodeURIComponent(id)}/kpis`).catch(
       () => undefined,
     ),
   ])
+
+  const profile = buildProfileFromParts(header.customer_info, kpis)
   return mapAction(action, profile)
 }
 
 export async function getGlobalInsights(): Promise<Insight[]> {
-  const [critical, high] = await Promise.all([
-    apiFetch<ApiCustomerListResponse>('/customers', {
-      skip: 0,
-      limit: 5,
-      risk_level: 'Critical',
-    }),
-    apiFetch<ApiCustomerListResponse>('/customers', {
-      skip: 0,
-      limit: 5,
-      risk_level: 'High',
-    }),
-  ])
+  const headers = await fetchAllCustomerHeaders()
+  const inactive = headers
+    .map(parseCustomerInfo)
+    .filter((p) => p.status === 'غیرفعال')
+    .slice(0, 3)
+
+  const segmentC = headers
+    .map(parseCustomerInfo)
+    .filter((p) => p.segment === 'C' && p.status === 'فعال')
+    .slice(0, 3)
 
   const insights: Insight[] = []
 
-  for (const item of critical.items) {
+  for (const item of inactive) {
     insights.push({
-      id: `global-${item.Customer_ID}`,
-      customerId: item.Customer_ID,
-      title: 'ریسک بحرانی',
-      message: `مشتری ${item.Customer_ID} — RFM: ${item.RFM_Segment ?? '—'} — درآمد: ${Math.round(item.Monetary_Total_Revenue ?? 0).toLocaleString('fa-IR')}`,
+      id: `global-inactive-${item.customerId}`,
+      customerId: item.customerId,
+      title: 'مشتری غیرفعال',
+      message: `مشتری ${item.customerId} (بخش ${item.segment || '—'}) در وضعیت غیرفعال است.`,
       severity: 'critical',
       isGlobal: true,
     })
   }
 
-  for (const item of high.items) {
+  for (const item of segmentC) {
     insights.push({
-      id: `global-high-${item.Customer_ID}`,
-      customerId: item.Customer_ID,
-      title: 'ریسک بالا',
-      message: `مشتری ${item.Customer_ID} نیازمند پیگیری فوری — ${item.RFM_Segment ?? ''}`,
+      id: `global-segment-c-${item.customerId}`,
+      customerId: item.customerId,
+      title: 'بخش C — نیازمند توجه',
+      message: `مشتری فعال ${item.customerId} در بخش C قرار دارد.`,
       severity: 'warning',
       isGlobal: true,
     })
