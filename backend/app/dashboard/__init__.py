@@ -1,0 +1,1 @@
+"""Isolated Executive Dashboard module."""
