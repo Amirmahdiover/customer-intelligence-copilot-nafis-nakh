@@ -5,12 +5,17 @@ import {
   buildProfileFromParts,
   buildSyntheticOrder,
   mapAction,
-  mapComplaint,
+  mapComplaintDetail,
+  mapCrmInteraction,
+  mapCrmLatest,
   mapCustomerInfoToCustomer,
 } from '@/services/crm/api.mapper'
 import type {
   ApiActionResponse,
-  ApiComplaintsResponse,
+  ApiComplaintsCountResponse,
+  ApiCrmInteractionsListResponse,
+  ApiCrmLatestResponse,
+  ApiCustomerComplaintsResponse,
   ApiCustomerHeaderListResponse,
   ApiCustomerHeaderResponse,
   ApiKpiResponse,
@@ -18,6 +23,8 @@ import type {
 } from '@/types/api'
 import type {
   Complaint,
+  CrmInteraction,
+  CrmLatest,
   CrmOverview,
   Customer,
   CustomerFilters,
@@ -33,27 +40,6 @@ const RISK_ORDER: Record<RiskLevel, number> = { low: 1, medium: 2, high: 3 }
 async function fetchAllCustomerHeaders(): Promise<string[]> {
   const response = await apiFetch<ApiCustomerHeaderListResponse>('/customers')
   return response.customers.map((item) => item.customer_info)
-}
-
-async function enrichCustomer(
-  customerInfo: string,
-): Promise<Customer> {
-  const { customerId } = parseCustomerInfo(customerInfo)
-  const [kpis, risk] = await Promise.all([
-    apiFetch<ApiKpiResponse>(`/customers/${encodeURIComponent(customerId)}/kpis`).catch(
-      () => undefined,
-    ),
-    apiFetch<ApiRiskResponse>(`/customers/${encodeURIComponent(customerId)}/risk`).catch(
-      () => undefined,
-    ),
-  ])
-  return mapCustomerInfoToCustomer(customerInfo, kpis, risk)
-}
-
-async function enrichCustomers(
-  customerInfos: string[],
-): Promise<Customer[]> {
-  return Promise.all(customerInfos.map(enrichCustomer))
 }
 
 function applyClientFilters(
@@ -140,32 +126,13 @@ export async function getCrmOverview(): Promise<CrmOverview> {
   const activeCustomers = parsed.filter((p) => p.status === 'فعال').length
   const atRiskCustomers = parsed.filter((p) => p.status === 'غیرفعال').length
 
-  const sampleSize = Math.min(40, headers.length)
-  const sample = headers.slice(0, sampleSize)
-  const enrichedSample = await enrichCustomers(sample)
-
-  const sampleRevenue = enrichedSample.reduce((sum, c) => sum + c.totalRevenue, 0)
-  const totalRevenue =
-    sampleSize > 0
-      ? Math.round((sampleRevenue / sampleSize) * totalCustomers)
-      : 0
-
-  const outstandingPayments = enrichedSample
-    .filter((c) => c.risk.overall === 'high')
-    .reduce((sum, c) => sum + c.totalRevenue * 0.08, 0)
-
-  const scale =
-    atRiskCustomers > 0
-      ? atRiskCustomers / Math.max(1, enrichedSample.filter((c) => c.risk.overall === 'high').length)
-      : 1
-
   return {
     totalCustomers,
     newCustomersThisMonth: Math.round(totalCustomers * 0.05),
     activeCustomers,
     atRiskCustomers,
-    totalRevenue,
-    outstandingPayments: Math.round(outstandingPayments * scale),
+    totalRevenue: 0,
+    outstandingPayments: 0,
   }
 }
 
@@ -178,18 +145,7 @@ export async function getCustomers(
 
   const baseCustomers = headers.map((info) => mapCustomerInfoToCustomer(info))
   const filtered = applyClientFilters(baseCustomers, filters)
-  const pageSlice = paginate(filtered, page, limit)
-  const pageHeaders = pageSlice.data.map((c) => {
-    const header = headers.find((h) => parseCustomerInfo(h).customerId === c.id)
-    return header ?? `${c.id},,`
-  })
-
-  const enrichedPage = await enrichCustomers(pageHeaders)
-
-  return {
-    ...pageSlice,
-    data: enrichedPage,
-  }
+  return paginate(filtered, page, limit)
 }
 
 export async function getCustomerById(id: string): Promise<Customer> {
@@ -223,11 +179,38 @@ export async function getCustomerOrders(id: string): Promise<Order[]> {
   return synthetic ? [synthetic] : []
 }
 
+export async function getCustomerComplaintsCount(
+  id: string,
+): Promise<number> {
+  const response = await apiFetch<ApiComplaintsCountResponse>(
+    `/customers/${encodeURIComponent(id)}/complaints/count`,
+  )
+  return response.complaints_count
+}
+
 export async function getCustomerComplaints(id: string): Promise<Complaint[]> {
-  const response = await apiFetch<ApiComplaintsResponse>(
+  const response = await apiFetch<ApiCustomerComplaintsResponse>(
     `/customers/${encodeURIComponent(id)}/complaints`,
   )
-  return response.complaints.map(mapComplaint)
+  return response.complaints.map((record, index) =>
+    mapComplaintDetail(response.customer_id, record, index),
+  )
+}
+
+export async function getCustomerCrm(id: string): Promise<CrmLatest> {
+  const response = await apiFetch<ApiCrmLatestResponse>(
+    `/customers/${encodeURIComponent(id)}/crm`,
+  )
+  return mapCrmLatest(response)
+}
+
+export async function getCustomerCrmInteractions(
+  id: string,
+): Promise<CrmInteraction[]> {
+  const response = await apiFetch<ApiCrmInteractionsListResponse>(
+    `/customers/${encodeURIComponent(id)}/crm/interactions`,
+  )
+  return response.interactions.map(mapCrmInteraction)
 }
 
 export async function getCustomerInsights(id: string): Promise<Insight[]> {

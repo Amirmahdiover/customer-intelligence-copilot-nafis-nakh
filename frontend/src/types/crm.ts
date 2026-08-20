@@ -97,12 +97,29 @@ export interface Order {
 export interface Complaint {
   id: string
   customerId: string
-  complaintNumber: string
-  type: string
-  status: ComplaintStatus
-  date: string
-  description: string
-  priority: ComplaintPriority
+  Product_id: string
+  complaint_text: string
+  severity: string
+  created_at: string
+  complaint_status: string
+  text_resolution: string | null
+}
+
+export interface CrmInteraction {
+  nextAction: string | null
+  interactionType: string | null
+  summaryText: string | null
+  updatedAt: string | null
+  urgency: string | null
+}
+
+export interface CrmLatest {
+  customerId: string
+  nextAction: string | null
+  interactionType: string | null
+  summaryText: string | null
+  updatedAt: string | null
+  urgency: string | null
 }
 
 export interface Insight {

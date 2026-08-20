@@ -140,6 +140,49 @@ export interface ApiActionResponse {
   method: 'rule_based'
 }
 
+export interface ApiCrmLatestResponse {
+  customer_id: string
+  next_action?: string | null
+  interaction_type?: string | null
+  summary_text?: string | null
+  updated_at?: string | null
+  urgency?: string | null
+}
+
+export interface ApiCrmInteractionItem {
+  next_action?: string | null
+  interaction_type?: string | null
+  summary_text?: string | null
+  updated_at?: string | null
+  urgency?: string | null
+}
+
+export interface ApiCrmInteractionsListResponse {
+  customer_id: string
+  interactions: ApiCrmInteractionItem[]
+}
+
+export interface ApiComplaintDetail {
+  Product_id?: string | null
+  complaint_text?: string | null
+  severity?: string | null
+  created_at?: string | null
+  complaint_status?: string | null
+  text_resolution?: string | null
+}
+
+export interface ApiComplaintsCountResponse {
+  customer_id: string
+  complaints_count: number
+}
+
+export interface ApiCustomerComplaintsResponse {
+  customer_id: string
+  complaints_count: number
+  complaints: ApiComplaintDetail[]
+}
+
+/** @deprecated legacy analytics sheet shape */
 export interface ApiComplaintRecord {
   Complaint_ID: string
   Customer_ID: string

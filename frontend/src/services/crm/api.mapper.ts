@@ -1,7 +1,10 @@
 import { formatCustomerIdWithStatus, parseCustomerInfo } from '@/lib/customerInfo'
 import type {
   ApiActionResponse,
+  ApiComplaintDetail,
   ApiComplaintRecord,
+  ApiCrmInteractionItem,
+  ApiCrmLatestResponse,
   ApiCustomerProfile,
   ApiCustomerSummary,
   ApiKpiResponse,
@@ -16,6 +19,8 @@ import type {
   Complaint,
   ComplaintPriority,
   ComplaintStatus,
+  CrmInteraction,
+  CrmLatest,
   Customer,
   CustomerRisk,
   CustomerStatus,
@@ -353,16 +358,57 @@ function buildProductMix(profile: ApiCustomerProfile) {
   ]
 }
 
+export function mapComplaintDetail(
+  customerId: string,
+  record: ApiComplaintDetail,
+  index: number,
+): Complaint {
+  const productId = record.Product_id ?? '—'
+  const createdAt = record.created_at ?? ''
+  return {
+    id: `${customerId}-${productId}-${createdAt}-${index}`,
+    customerId,
+    Product_id: productId,
+    complaint_text: record.complaint_text ?? '',
+    severity: record.severity ?? '—',
+    created_at: createdAt,
+    complaint_status: record.complaint_status ?? '—',
+    text_resolution: record.text_resolution ?? null,
+  }
+}
+
+export function mapCrmLatest(response: ApiCrmLatestResponse): CrmLatest {
+  return {
+    customerId: response.customer_id,
+    nextAction: response.next_action ?? null,
+    interactionType: response.interaction_type ?? null,
+    summaryText: response.summary_text ?? null,
+    updatedAt: response.updated_at ?? null,
+    urgency: response.urgency ?? null,
+  }
+}
+
+export function mapCrmInteraction(record: ApiCrmInteractionItem): CrmInteraction {
+  return {
+    nextAction: record.next_action ?? null,
+    interactionType: record.interaction_type ?? null,
+    summaryText: record.summary_text ?? null,
+    updatedAt: record.updated_at ?? null,
+    urgency: record.urgency ?? null,
+  }
+}
+
+/** @deprecated legacy mapper */
 export function mapComplaint(record: ApiComplaintRecord): Complaint {
   return {
     id: record.Complaint_ID,
     customerId: record.Customer_ID,
-    complaintNumber: record.Complaint_ID,
-    type: record.Complaint_Title ?? 'شکایت',
-    status: mapComplaintStatus(record.Complaint_Status),
-    date: record.Created_At ?? '',
-    description: record.Complaint_Text ?? '',
-    priority: mapComplaintPriority(record.Severity),
+    Product_id: record.Product_ID ?? '—',
+    complaint_text: record.Complaint_Text ?? '',
+    severity: record.Severity ?? '—',
+    created_at: record.Created_At ?? '',
+    complaint_status: record.Complaint_Status ?? '—',
+    text_resolution: null,
   }
 }
 

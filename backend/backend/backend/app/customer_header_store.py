@@ -1,4 +1,7 @@
 """In-memory store for customer_header.csv — loaded once at startup."""
+from __future__ import annotations
+
+from functools import lru_cache
 from pathlib import Path
 
 import pandas as pd
@@ -38,4 +41,17 @@ class CustomerHeaderStore:
         return self._by_id.get(customer_id)
 
 
-customer_header_store = CustomerHeaderStore()
+@lru_cache(maxsize=1)
+def get_customer_header_store() -> CustomerHeaderStore:
+    return CustomerHeaderStore()
+
+
+class _CustomerHeaderStoreProxy:
+    def list_customer_headers(self) -> list[dict[str, str]]:
+        return get_customer_header_store().list_customer_headers()
+
+    def get_customer_header(self, customer_id: str) -> str | None:
+        return get_customer_header_store().get_customer_header(customer_id)
+
+
+customer_header_store = _CustomerHeaderStoreProxy()

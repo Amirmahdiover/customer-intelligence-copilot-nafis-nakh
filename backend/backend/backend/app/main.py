@@ -9,12 +9,17 @@ aggregation or explicit rule — no ML/statistical model is used anywhere.
 """
 from fastapi import FastAPI, HTTPException, Path
 
-from app.customer_header_store import customer_header_store
+from app.complaint_store import complaint_store, get_complaint_store
+from app.crm_store import crm_store, get_crm_store
+from app.customer_header_store import customer_header_store, get_customer_header_store
 from app.data_loader import SNAPSHOT_DATE, store
 from app.rules import risk_breakdown
 from app.schemas import (
     ActionResponse,
-    ComplaintsResponse,
+    ComplaintsCountResponse,
+    CrmInteractionsListResponse,
+    CrmLatestResponse,
+    CustomerComplaintsListResponse,
     CustomerHeaderListResponse,
     CustomerHeaderResponse,
     ErrorResponse,
@@ -26,6 +31,7 @@ OPENAPI_TAGS = [
     {"name": "Customers", "description": "Customer identity header (customer_info) from customer_header.csv."},
     {"name": "KPIs", "description": "RFM, order pattern, delay, lifetime, margin, LTV, and revenue-share metrics."},
     {"name": "Complaints", "description": "Complaint history and detail records."},
+    {"name": "CRM", "description": "CRM interactions: latest next_action and full interaction history."},
     {"name": "Risk", "description": "Rule-based risk scoring with a transparent, factor-by-factor breakdown."},
     {"name": "Recommended Actions", "description": "Rule-based next-best-action per customer."},
 ]
@@ -45,6 +51,18 @@ app = FastAPI(
     openapi_tags=OPENAPI_TAGS,
 )
 
+
+@app.on_event("startup")
+def preload_data_stores() -> None:
+    headers = get_customer_header_store()
+    complaints = get_complaint_store()
+    crm = get_crm_store()
+    print(
+        f"Loaded {len(headers.list_customer_headers())} customers, "
+        f"{sum(complaints.count_for_customer(cid) for cid in complaints.customers_with_complaints())} complaints, "
+        f"{crm.total_interactions()} CRM interactions."
+    )
+
 NOT_FOUND_RESPONSES = {404: {"model": ErrorResponse, "description": "Customer not found"}}
 
 CUSTOMER_ID_PATH = Path(
@@ -59,6 +77,11 @@ def _get_customer_or_404(customer_id: str) -> dict:
     if record is None:
         raise HTTPException(status_code=404, detail=f"Customer '{customer_id}' not found")
     return record
+
+
+def _ensure_customer_exists(customer_id: str) -> None:
+    if customer_header_store.get_customer_header(customer_id) is None:
+        raise HTTPException(status_code=404, detail=f"Customer '{customer_id}' not found")
 
 
 @app.get(
@@ -102,24 +125,87 @@ def get_customer_kpis(customer_id: str = CUSTOMER_ID_PATH):
 
 
 @app.get(
-    "/customers/{customer_id}/complaints",
-    response_model=ComplaintsResponse,
+    "/customers/{customer_id}/complaints/count",
+    response_model=ComplaintsCountResponse,
     responses=NOT_FOUND_RESPONSES,
     tags=["Complaints"],
-    summary="Get customer complaint history",
-    description="Lifetime/recent complaint counts and the most frequent complaint title, "
-                "plus every individual complaint record for this customer from the شکایات sheet.",
+    summary="Get customer complaint count",
+    description="Returns the number of complaint records for one customer. "
+                "Used for the dashboard complaints card before expanding details.",
+)
+def get_customer_complaints_count(customer_id: str = CUSTOMER_ID_PATH):
+    _ensure_customer_exists(customer_id)
+    return ComplaintsCountResponse(
+        customer_id=customer_id,
+        complaints_count=complaint_store.count_for_customer(customer_id),
+    )
+
+
+@app.get(
+    "/customers/{customer_id}/complaints",
+    response_model=CustomerComplaintsListResponse,
+    responses=NOT_FOUND_RESPONSES,
+    tags=["Complaints"],
+    summary="Get customer complaint details",
+    description="Returns all complaint records for one customer from customer_complaints.csv. "
+                "Count is computed from records — never hard-coded.",
 )
 def get_customer_complaints(customer_id: str = CUSTOMER_ID_PATH):
-    record = _get_customer_or_404(customer_id)
-    complaints = store.get_complaints_for_customer(customer_id)
-    return {
-        "Customer_ID": customer_id,
-        "Lifetime_Complaints": record.get("Lifetime_Complaints"),
-        "Recent_Complaints_12M": record.get("Recent_Complaints_12M"),
-        "Biggest_Problem": record.get("Biggest_Problem"),
-        "complaints": complaints,
-    }
+    _ensure_customer_exists(customer_id)
+    complaints = complaint_store.list_for_customer(customer_id)
+    return CustomerComplaintsListResponse(
+        customer_id=customer_id,
+        complaints_count=len(complaints),
+        complaints=complaints,
+    )
+
+
+@app.get(
+    "/customers/{customer_id}/crm",
+    response_model=CrmLatestResponse,
+    responses=NOT_FOUND_RESPONSES,
+    tags=["CRM"],
+    summary="Get latest CRM interaction (next action)",
+    description="Returns the latest CRM interaction for a customer (by updated_at). "
+                "`next_action` is the primary field for the sales dashboard card. "
+                "Urgency is extracted server-side from summary_text.",
+)
+def get_customer_crm(customer_id: str = CUSTOMER_ID_PATH):
+    _ensure_customer_exists(customer_id)
+    latest = crm_store.get_latest(customer_id)
+    if latest is None:
+        return CrmLatestResponse(
+            customer_id=customer_id,
+            next_action=None,
+            interaction_type=None,
+            summary_text=None,
+            updated_at=None,
+            urgency=None,
+        )
+    return CrmLatestResponse(
+        customer_id=customer_id,
+        next_action=latest.get("next_action"),
+        interaction_type=latest.get("interaction_type"),
+        summary_text=latest.get("summary_text"),
+        updated_at=latest.get("updated_at"),
+        urgency=latest.get("urgency"),
+    )
+
+
+@app.get(
+    "/customers/{customer_id}/crm/interactions",
+    response_model=CrmInteractionsListResponse,
+    responses=NOT_FOUND_RESPONSES,
+    tags=["CRM"],
+    summary="List all CRM interactions for a customer",
+    description="Returns every CRM interaction for one customer, newest first by updated_at.",
+)
+def get_customer_crm_interactions(customer_id: str = CUSTOMER_ID_PATH):
+    _ensure_customer_exists(customer_id)
+    return CrmInteractionsListResponse(
+        customer_id=customer_id,
+        interactions=crm_store.list_interactions(customer_id),
+    )
 
 
 @app.get(

@@ -234,7 +234,99 @@ class KPIResponse(BaseModel):
 
 
 # ---------------------------------------------------------------------------
-# /customers/{id}/complaints
+# /customers/{id}/crm — customer_crm_interactions.csv pipeline
+# ---------------------------------------------------------------------------
+
+class CrmLatestResponse(BaseModel):
+    customer_id: str
+    next_action: Optional[str] = Field(None, description="Primary next action for the sales UI (source: Next_Action).")
+    interaction_type: Optional[str] = Field(None, description="CRM interaction type (source: Interaction_Type).")
+    summary_text: Optional[str] = Field(None, description="Original summary text; not rewritten (source: Summary_Text).")
+    updated_at: Optional[str] = Field(None, description="ISO YYYY-MM-DD (source: Updated_At).")
+    urgency: Optional[str] = Field(None, description="Extracted from summary_text via 'فوریت: …'. Null if not present.")
+
+    model_config = ConfigDict(json_schema_extra={"example": {
+        "customer_id": "C_051706",
+        "next_action": "پیگیری تلفنی",
+        "interaction_type": "نمونه محصول",
+        "summary_text": "مشخصات نمونه و شرایط آزمون با مشتری هماهنگ شد. اقدام بعدی: پیگیری تلفنی؛ فوریت: مهم؛ کد پیگیری 0007.",
+        "updated_at": "2020-08-15",
+        "urgency": "مهم",
+    }})
+
+
+class CrmInteractionItem(BaseModel):
+    next_action: Optional[str] = None
+    interaction_type: Optional[str] = None
+    summary_text: Optional[str] = None
+    updated_at: Optional[str] = None
+    urgency: Optional[str] = None
+
+    model_config = ConfigDict(json_schema_extra={"example": {
+        "next_action": "پیگیری تلفنی",
+        "interaction_type": "نمونه محصول",
+        "summary_text": "مشخصات نمونه و شرایط آزمون با مشتری هماهنگ شد. اقدام بعدی: پیگیری تلفنی؛ فوریت: مهم؛ کد پیگیری 0007.",
+        "updated_at": "2020-08-15",
+        "urgency": "مهم",
+    }})
+
+
+class CrmInteractionsListResponse(BaseModel):
+    customer_id: str
+    interactions: list[CrmInteractionItem]
+
+    model_config = ConfigDict(json_schema_extra={"example": {
+        "customer_id": "C_051706",
+        "interactions": [CrmInteractionItem.model_config["json_schema_extra"]["example"]],
+    }})
+
+
+# ---------------------------------------------------------------------------
+# /customers/{id}/complaints — customer_complaints.csv pipeline
+# ---------------------------------------------------------------------------
+
+class ComplaintDetailItem(BaseModel):
+    Product_id: Optional[str] = Field(None, description="Product identifier (source: Product_ID).")
+    complaint_text: Optional[str] = Field(None, description="Complaint description (source: Complaint_Text).")
+    severity: Optional[str] = Field(None, description="Severity level (source: Severity).")
+    created_at: Optional[str] = Field(None, description="Complaint creation date, ISO YYYY-MM-DD (source: Created_At).")
+    complaint_status: Optional[str] = Field(None, description="Complaint status (source: Complaint_Status).")
+    text_resolution: Optional[str] = Field(None, description="Resolution outcome text (source: Resolution_Text). Null if unresolved.")
+
+    model_config = ConfigDict(json_schema_extra={"example": {
+        "Product_id": "PRD-POY-001",
+        "complaint_text": "نخ در بعضي جاها سيمي ميباشد...",
+        "severity": "کم",
+        "created_at": "2025-04-15",
+        "complaint_status": "پذیرفته‌شده",
+        "text_resolution": "موضوع از داخل سازمان بررسی گردید...",
+    }})
+
+
+class ComplaintsCountResponse(BaseModel):
+    customer_id: str
+    complaints_count: int
+
+    model_config = ConfigDict(json_schema_extra={"example": {
+        "customer_id": "C_683666",
+        "complaints_count": 37,
+    }})
+
+
+class CustomerComplaintsListResponse(BaseModel):
+    customer_id: str
+    complaints_count: int
+    complaints: list[ComplaintDetailItem]
+
+    model_config = ConfigDict(json_schema_extra={"example": {
+        "customer_id": "C_683666",
+        "complaints_count": 2,
+        "complaints": [ComplaintDetailItem.model_config["json_schema_extra"]["example"]],
+    }})
+
+
+# ---------------------------------------------------------------------------
+# /customers/{id}/complaints — legacy analytics sheet (deprecated)
 # ---------------------------------------------------------------------------
 
 class ComplaintRecord(BaseModel):

@@ -7,6 +7,7 @@ import { ReorderSignal } from '@/components/crm/customer360/ReorderSignal'
 import { CustomerBehavior } from '@/components/crm/customer360/CustomerBehavior'
 import { ProductMix } from '@/components/crm/customer360/ProductMix'
 import { Complaints } from '@/components/crm/customer360/Complaints'
+import { CrmSection } from '@/components/crm/customer360/CrmSection'
 import { CustomerRisk } from '@/components/crm/customer360/CustomerRisk'
 import { InsightCard } from '@/components/crm/customer360/InsightCard'
 import { RecommendedAction } from '@/components/crm/customer360/RecommendedAction'
@@ -31,6 +32,7 @@ export function Customer360() {
           <CustomerBehavior customerId={id} />
           <ProductMix customerId={id} />
           <Complaints customerId={id} />
+          <CrmSection customerId={id} />
           <CustomerRisk customerId={id} />
         </div>
         <div>

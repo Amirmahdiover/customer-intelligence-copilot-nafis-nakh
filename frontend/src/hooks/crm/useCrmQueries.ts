@@ -4,6 +4,9 @@ import {
   getCustomerActions,
   getCustomerById,
   getCustomerComplaints,
+  getCustomerComplaintsCount,
+  getCustomerCrm,
+  getCustomerCrmInteractions,
   getCustomerInsights,
   getCustomerOrders,
   getCustomers,
@@ -41,11 +44,35 @@ export function useCustomerOrders(id: string) {
   })
 }
 
-export function useCustomerComplaints(id: string) {
+export function useCustomerComplaintsCount(id: string) {
+  return useQuery({
+    queryKey: ['crm', 'complaints', id, 'count'],
+    queryFn: () => getCustomerComplaintsCount(id),
+    enabled: !!id,
+  })
+}
+
+export function useCustomerComplaints(id: string, enabled = true) {
   return useQuery({
     queryKey: ['crm', 'complaints', id],
     queryFn: () => getCustomerComplaints(id),
+    enabled: !!id && enabled,
+  })
+}
+
+export function useCustomerCrm(id: string) {
+  return useQuery({
+    queryKey: ['crm', 'crm-latest', id],
+    queryFn: () => getCustomerCrm(id),
     enabled: !!id,
+  })
+}
+
+export function useCustomerCrmInteractions(id: string, enabled = true) {
+  return useQuery({
+    queryKey: ['crm', 'crm-interactions', id],
+    queryFn: () => getCustomerCrmInteractions(id),
+    enabled: !!id && enabled,
   })
 }
 
