@@ -186,7 +186,7 @@ export function SalesAssistantChat() {
             <div className="flex items-center gap-2 text-card-foreground">
               <span className="flex size-8 items-center justify-center rounded-full bg-primary text-primary-foreground"><Sparkles size={16} /></span>
               <div>
-                <h2 className="text-sm font-bold">دستیار فروش AI</h2>
+                <h2 className="text-sm font-bold">نفیس | دستیار فروش</h2>
                 <p className="text-xs text-muted-foreground">پاسخ بر پایه داده‌های CRM</p>
               </div>
             </div>
@@ -244,8 +244,15 @@ export function SalesAssistantChat() {
           </form>
         </section>
       )}
-      <Button type="button" size="icon-lg" onClick={() => setOpen((value) => !value)} aria-label={open ? 'بستن دستیار فروش' : 'باز کردن دستیار فروش'} className="size-12 rounded-full shadow-lg">
-        {open ? <X size={20} /> : <Bot size={22} />}
+      <Button
+        type="button"
+        size="icon-lg"
+        onClick={() => setOpen((value) => !value)}
+        aria-label={open ? 'بستن نفیس، دستیار فروش' : 'باز کردن نفیس، دستیار فروش'}
+        title={open ? 'بستن نفیس' : 'نفیس، دستیار فروش هوشمند'}
+        className="sales-copilot-trigger size-[3.75rem] rounded-full border-2 border-white/30 bg-gradient-to-br from-indigo-600 via-violet-600 to-cyan-600 text-white shadow-xl shadow-indigo-500/35 transition-transform hover:scale-105 hover:shadow-indigo-500/50"
+      >
+        {open ? <X size={24} /> : <Bot size={29} strokeWidth={2.25} />}
       </Button>
     </div>
   )
