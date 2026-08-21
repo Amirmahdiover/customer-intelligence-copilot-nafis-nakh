@@ -4,9 +4,34 @@ import { SectionSkeleton } from '@/components/crm/shared/skeletons/CrmSkeletons'
 import { ErrorState } from '@/components/crm/shared/ErrorState'
 import { Button } from '@/components/ui/button'
 import { useCustomerBestOffer } from '@/hooks/crm/useCrmQueries'
+import type { BestOfferItem } from '@/types/crm'
 
 interface CustomerSidebarProps {
   customerId: string
+}
+
+const OFFER_TYPE_LABELS: Record<string, string> = {
+  قیمتی: 'پیشنهاد تخفیف قیمتی',
+  حجمی: 'پیشنهاد حجمی برای افزایش سفارش',
+  'مدت‌دار': 'پیشنهاد با اعتبار زمانی محدود',
+}
+
+function formatPct(fraction: number): string {
+  return `${(fraction * 100).toFixed(0).replace(/\.0$/, '')}٪`
+}
+
+function offerTitle(item: BestOfferItem): string {
+  return OFFER_TYPE_LABELS[item.offerType] ?? `پیشنهاد ${item.offerType}`
+}
+
+function offerDetail(item: BestOfferItem): string {
+  const parts = [
+    item.offerReason ? `هدف: ${item.offerReason}` : null,
+    item.productFamily ? `خانواده محصول: ${item.productFamily}` : null,
+    `تخفیف پیشنهادی ${formatPct(item.discountPct)} با اعتبار ${item.validityDays.toLocaleString('fa-IR')} روز`,
+    `احتمال پذیرش حدود ${formatPct(item.acceptProbability)}`,
+  ]
+  return parts.filter(Boolean).join(' · ')
 }
 
 export function CustomerSidebar({ customerId }: CustomerSidebarProps) {
@@ -51,16 +76,14 @@ export function CustomerSidebar({ customerId }: CustomerSidebarProps) {
         ) : opportunities.length === 0 ? (
           <p className="text-xs text-muted-foreground">فرصتی ثبت نشده است.</p>
         ) : (
-          <ul className="space-y-2">
+          <ul className="space-y-2.5">
             {opportunities.map((item, index) => (
               <li
                 key={`${item.offerType}-${index}`}
                 className="rounded border border-border bg-white px-2.5 py-2 text-xs leading-relaxed"
               >
-                <p className="font-medium text-card-foreground">
-                  آفر {item.offerType}
-                </p>
-                <p className="mt-0.5 text-muted-foreground">{item.offerReason}</p>
+                <p className="font-medium text-card-foreground">{offerTitle(item)}</p>
+                <p className="mt-1 text-muted-foreground">{offerDetail(item)}</p>
               </li>
             ))}
           </ul>

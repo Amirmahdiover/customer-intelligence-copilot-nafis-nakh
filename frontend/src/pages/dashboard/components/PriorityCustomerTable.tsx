@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { formatCurrency } from '@/lib/formatters'
 import type { DashboardDecisionCategory, DashboardPriorityCustomer } from '../types/dashboard.types'
-import { toPersianDashboardText } from '../persian'
+import { toPersianDashboardText, describeOpportunityScore } from '../persian'
 import { getDashboardAIExplanation } from '../services/dashboard.service'
 
 interface PriorityCustomerTableProps {
@@ -13,7 +13,9 @@ interface PriorityCustomerTableProps {
 }
 
 const CATEGORY_LABELS: Record<DashboardDecisionCategory, string> = {
-  customer_recovery: 'حفظ مشتری', growth_opportunity: 'فرصت رشد', sales_opportunity: 'فرصت فروش',
+  customer_recovery: 'حفظ و بازیابی مشتری',
+  growth_opportunity: 'فرصت رشد حساب و سهم سبد',
+  sales_opportunity: 'پیگیری فرصت فروش نزدیک‌مدت',
 }
 const HIGH_RISK_LEVELS = new Set(['High', 'Critical'])
 
@@ -53,19 +55,23 @@ export function PriorityCustomerTable({ customers, onSelectCustomer }: PriorityC
                     <TableCell className="font-semibold"><button type="button" onClick={() => onSelectCustomer(customer)} className="text-primary hover:underline">{customer.customer_id}</button></TableCell>
                     <TableCell><Badge variant="outline">{CATEGORY_LABELS[category]}</Badge></TableCell>
                     <TableCell className="max-w-64 whitespace-normal text-muted-foreground">{toPersianDashboardText(mainSignal)}</TableCell>
-                    <TableCell><Badge variant="secondary">{aiExplanation.isLoading ? 'در حال تحلیل' : aiData?.source === 'openai' ? aiData.why_tag : 'AI در دسترس نیست'}</Badge></TableCell>
+                    <TableCell className="max-w-64 whitespace-normal text-sm leading-6">
+                      {aiExplanation.isLoading
+                        ? 'در حال تحلیل…'
+                        : toPersianDashboardText(
+                            aiData?.why_it_matters ?? customer.decision_reason ?? customer.interpretation,
+                          )}
+                    </TableCell>
                     <TableCell>{customer.risk_score == null ? '—' : `${Math.round(customer.risk_score)}٪`}</TableCell>
                     <TableCell>{revenueAtRisk}</TableCell>
-                    <TableCell>{customer.opportunity_score}٪</TableCell>
+                    <TableCell className="max-w-56 whitespace-normal text-xs leading-5">{describeOpportunityScore(customer.opportunity_score)}</TableCell>
                     <TableCell>{toPersianDashboardText(customer.crm_urgency ?? 'عادی')}</TableCell>
-                    <TableCell>
-                      {aiExplanation.isLoading ? (
-                        <Badge variant="secondary">در حال تهیه</Badge>
-                      ) : aiData?.source === 'openai' ? (
-                        <Badge variant="secondary">{aiData.action_tag}</Badge>
-                      ) : (
-                        <Badge variant="outline">AI در دسترس نیست</Badge>
-                      )}
+                    <TableCell className="max-w-72 whitespace-normal text-sm leading-6">
+                      {aiExplanation.isLoading
+                        ? 'در حال تهیه…'
+                        : toPersianDashboardText(
+                            aiData?.recommended_action ?? customer.recommended_action,
+                          )}
                     </TableCell>
                   </TableRow>
                 )

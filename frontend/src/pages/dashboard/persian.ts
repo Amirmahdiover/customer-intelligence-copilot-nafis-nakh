@@ -120,3 +120,14 @@ export function toPersianStatus(status: string): string {
 export function toPersianRiskLevel(riskLevel: string | null): string {
   return riskLevel ? (RISK_LEVELS[riskLevel] ?? riskLevel) : '—'
 }
+
+export function describeOpportunityScore(score: number): string {
+  const pct = `${Math.round(score).toLocaleString('fa-IR')}٪`
+  if (score >= 60) {
+    return `ظرفیت رشد بالا (${pct}) — مناسب توسعه فروش و افزایش سهم سبد`
+  }
+  if (score >= 35) {
+    return `ظرفیت رشد متوسط (${pct}) — با پیشنهاد هدفمند قابل پیگیری است`
+  }
+  return `ظرفیت رشد محدود (${pct}) — اولویت با حفظ رابطه فعلی است`
+}

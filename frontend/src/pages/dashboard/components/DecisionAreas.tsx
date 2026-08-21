@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { formatCurrency } from '@/lib/formatters'
 import type { DashboardDecisionCategory, DashboardPriorityCustomer } from '../types/dashboard.types'
-import { toPersianDashboardText } from '../persian'
+import { toPersianDashboardText, describeOpportunityScore } from '../persian'
 import { getDashboardAIExplanation } from '../services/dashboard.service'
 
 interface DecisionAreasProps {
@@ -14,7 +14,9 @@ interface DecisionAreasProps {
 }
 
 const CATEGORY_LABELS: Record<DashboardDecisionCategory, string> = {
-  customer_recovery: 'حفظ مشتری', growth_opportunity: 'فرصت رشد', sales_opportunity: 'فرصت فروش',
+  customer_recovery: 'حفظ و بازیابی مشتری',
+  growth_opportunity: 'فرصت رشد حساب و سهم سبد',
+  sales_opportunity: 'پیگیری فرصت فروش نزدیک‌مدت',
 }
 const CATEGORY_TONES: Record<DashboardDecisionCategory, string> = {
   customer_recovery: 'border-r-rose-500 bg-rose-50/40', growth_opportunity: 'border-r-emerald-500 bg-emerald-50/40', sales_opportunity: 'border-r-amber-500 bg-amber-50/40',
@@ -52,12 +54,12 @@ function PriorityRow({ customer, onSelectCustomer }: { customer: DashboardPriori
   const category = customer.decision_category ?? 'customer_recovery'
   const revenueAtRisk = HIGH_RISK_LEVELS.has(customer.risk_level ?? '') ? formatCurrency(customer.annual_sales_trailing_12m) : '—'
   const mainSignal = customer.main_signal ?? customer.decision_evidence[0] ?? customer.interpretation
-  const whyTag = aiExplanation.data?.source === 'openai'
-    ? aiExplanation.data.why_tag
+  const whyText = aiExplanation.data
+    ? toPersianDashboardText(aiExplanation.data.why_it_matters)
     : null
-  const actionTag = aiExplanation.data?.source === 'openai'
-    ? aiExplanation.data.action_tag
-    : null
+  const actionText = aiExplanation.data
+    ? toPersianDashboardText(aiExplanation.data.recommended_action)
+    : toPersianDashboardText(customer.recommended_action)
   return (
     <article className={`rounded-lg border border-r-4 p-3 ${CATEGORY_TONES[category]}`}>
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -67,15 +69,21 @@ function PriorityRow({ customer, onSelectCustomer }: { customer: DashboardPriori
         </div>
         <span className="inline-flex items-center gap-1 text-xs text-muted-foreground"><Clock3 size={13} />{toPersianDashboardText(customer.crm_urgency ?? 'عادی')}</span>
       </div>
-      <p className="mt-2 text-sm text-muted-foreground"><span className="font-semibold text-card-foreground">سیگنال اصلی: </span>{toPersianDashboardText(mainSignal)}</p>
-      <div className="mt-2 flex items-center gap-2 text-sm"><span className="font-semibold text-card-foreground">چرایی:</span><Badge variant="secondary">{aiExplanation.isLoading ? 'در حال تحلیل' : whyTag ?? 'AI در دسترس نیست'}</Badge></div>
-      <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs sm:grid-cols-4">
+      <p className="mt-2 text-sm leading-6 text-muted-foreground"><span className="font-semibold text-card-foreground">سیگنال اصلی: </span>{toPersianDashboardText(mainSignal)}</p>
+      <p className="mt-2 text-sm leading-6 text-muted-foreground">
+        <span className="font-semibold text-card-foreground">چرایی: </span>
+        {aiExplanation.isLoading ? 'در حال تحلیل…' : whyText ?? 'تحلیل تکمیلی در دسترس نیست.'}
+      </p>
+      <div className="mt-2 grid grid-cols-1 gap-x-3 gap-y-1.5 text-xs sm:grid-cols-2">
         <Fact label="احتمال ریزش" value={customer.risk_score == null ? '—' : `${Math.round(customer.risk_score)}٪`} />
         <Fact label="درآمد در خطر" value={revenueAtRisk} />
-        <Fact label="فرصت رشد" value={`${customer.opportunity_score}٪`} />
+        <Fact label="فرصت رشد" value={describeOpportunityScore(customer.opportunity_score)} />
         <Fact label="فوریت" value={toPersianDashboardText(customer.crm_urgency ?? 'عادی')} />
       </div>
-      <div className="mt-2 flex items-center gap-2 border-t border-border/70 pt-2 text-sm"><span className="font-semibold">اقدام AI:</span><Badge variant="secondary">{aiExplanation.isLoading ? 'در حال تهیه' : actionTag ?? 'AI در دسترس نیست'}</Badge></div>
+      <p className="mt-2 border-t border-border/70 pt-2 text-sm leading-6">
+        <span className="font-semibold">اقدام پیشنهادی: </span>
+        {aiExplanation.isLoading ? 'در حال تهیه…' : actionText}
+      </p>
     </article>
   )
 }

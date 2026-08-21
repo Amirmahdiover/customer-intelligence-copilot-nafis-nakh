@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { AlertCircle, CheckCircle2, ClipboardList, Search } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
@@ -12,6 +12,7 @@ import { formatNumber } from '@/lib/formatters'
 import type { Complaint } from '@/types/crm'
 
 const OPEN_STATUSES = new Set(['نیازمند بررسی', 'درحال بررسی', 'در حال بررسی', 'Open', 'In Progress'])
+const PAGE_SIZE = 15
 
 function isOpen(complaint: Complaint) {
   return OPEN_STATUSES.has(complaint.complaint_status.trim())
@@ -47,6 +48,7 @@ export function ComplaintsPage() {
   const [search, setSearch] = useState('')
   const [severity, setSeverity] = useState('all')
   const [status, setStatus] = useState('all')
+  const [page, setPage] = useState(1)
 
   const filteredComplaints = useMemo(() => {
     const query = search.trim().toLowerCase()
@@ -56,6 +58,17 @@ export function ComplaintsPage() {
       .filter((complaint) => !query || [complaint.customerId, complaint.Product_id, complaint.complaint_text].some((value) => value.toLowerCase().includes(query)))
       .sort((a, b) => b.created_at.localeCompare(a.created_at))
   }, [complaints, search, severity, status])
+
+  const totalPages = Math.max(1, Math.ceil(filteredComplaints.length / PAGE_SIZE))
+  const currentPage = Math.min(page, totalPages)
+  const pagedComplaints = filteredComplaints.slice(
+    (currentPage - 1) * PAGE_SIZE,
+    currentPage * PAGE_SIZE,
+  )
+
+  useEffect(() => {
+    setPage(1)
+  }, [search, severity, status])
 
   const openCount = complaints.filter(isOpen).length
   const criticalCount = complaints.filter((complaint) => complaint.severity === 'بحرانی' || complaint.severity === 'Critical').length
@@ -86,7 +99,7 @@ export function ComplaintsPage() {
               <CardTitle className="text-[0.95rem]">فهرست شکایت‌ها</CardTitle>
               <p className="mt-1 text-xs text-muted-foreground">{formatNumber(filteredComplaints.length)} مورد مطابق فیلتر فعلی</p>
             </div>
-            <Button variant="outline" size="sm" onClick={() => { setSearch(''); setSeverity('all'); setStatus('all') }}>پاک‌کردن فیلترها</Button>
+            <Button variant="outline" size="sm" onClick={() => { setSearch(''); setSeverity('all'); setStatus('all'); setPage(1) }}>پاک‌کردن فیلترها</Button>
           </div>
         </CardHeader>
         <CardContent className="pt-4">
@@ -113,7 +126,7 @@ export function ComplaintsPage() {
               <table className="w-full min-w-[760px] text-right text-sm">
                 <thead><tr className="border-b text-xs text-muted-foreground"><th className="pb-3 pr-2 font-medium">مشتری</th><th className="pb-3 font-medium">شرح شکایت</th><th className="pb-3 font-medium">شدت</th><th className="pb-3 font-medium">وضعیت</th><th className="pb-3 font-medium">تاریخ ثبت</th><th className="pb-3 font-medium">رسیدگی</th></tr></thead>
                 <tbody>
-                  {filteredComplaints.map((complaint) => (
+                  {pagedComplaints.map((complaint) => (
                     <tr key={complaint.id} className="border-b last:border-0 hover:bg-muted/35">
                       <td className="py-3 pr-2 align-top"><Link to={`/crm/customers/${complaint.customerId}`} className="font-semibold text-primary hover:underline">{complaint.customerId}</Link><div className="mt-1 text-xs text-muted-foreground">{complaint.Product_id}</div></td>
                       <td className="max-w-[22rem] py-3 align-top"><p className="line-clamp-2 leading-6">{complaint.complaint_text || 'بدون توضیح'}</p></td>
@@ -127,6 +140,29 @@ export function ComplaintsPage() {
               </table>
             </div>
             )}
+          {!isLoading && !isError && filteredComplaints.length > 0 && (
+            <div className="mt-4 flex flex-wrap items-center justify-center gap-4 border-t pt-4">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={currentPage <= 1}
+                onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+              >
+                قبلی
+              </Button>
+              <span className="text-sm text-muted-foreground">
+                صفحه {formatNumber(currentPage)} از {formatNumber(totalPages)} ({formatNumber(filteredComplaints.length)} مورد)
+              </span>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={currentPage >= totalPages}
+                onClick={() => setPage((prev) => Math.min(totalPages, prev + 1))}
+              >
+                بعدی
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

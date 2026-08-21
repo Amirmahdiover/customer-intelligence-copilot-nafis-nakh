@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { getDashboardAIExplanation } from '../services/dashboard.service'
 import type { DashboardDecisionCategory, DashboardPriorityCustomer } from '../types/dashboard.types'
-import { toPersianDashboardText, toPersianRiskLevel } from '../persian'
+import { toPersianDashboardText, toPersianRiskLevel, describeOpportunityScore } from '../persian'
 
 interface PriorityCustomerDetailProps {
   customer: DashboardPriorityCustomer | null
@@ -13,9 +13,9 @@ interface PriorityCustomerDetailProps {
 }
 
 const CATEGORY_LABELS: Record<DashboardDecisionCategory, string> = {
-  customer_recovery: 'حفظ مشتری',
-  growth_opportunity: 'فرصت رشد',
-  sales_opportunity: 'فرصت فروش',
+  customer_recovery: 'حفظ و بازیابی مشتری',
+  growth_opportunity: 'فرصت رشد حساب و سهم سبد',
+  sales_opportunity: 'پیگیری فرصت فروش نزدیک‌مدت',
 }
 
 export function PriorityCustomerDetail({ customer, onOpenChange }: PriorityCustomerDetailProps) {
@@ -73,7 +73,7 @@ export function PriorityCustomerDetail({ customer, onOpenChange }: PriorityCusto
               {customer.signals.slice(0, 3).map((signal) => <p key={signal.name} className="leading-5 text-muted-foreground">{toPersianDashboardText(signal.interpretation)}</p>)}
             </IndicatorGroup>
             <IndicatorGroup icon={<TrendingUp size={18} />} title="نشانه‌های فرصت">
-              <p><span>ظرفیت رشد: </span><strong>{customer.opportunity_score}٪</strong></p>
+              <p><span>ظرفیت رشد: </span><strong>{describeOpportunityScore(customer.opportunity_score)}</strong></p>
               {(opportunityEvidence.length ? opportunityEvidence : evidence.slice(0, 2)).slice(0, 3).map((item) => <p key={item} className="leading-5 text-muted-foreground">{toPersianDashboardText(item)}</p>)}
             </IndicatorGroup>
           </div>
