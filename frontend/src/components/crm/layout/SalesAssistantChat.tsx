@@ -62,7 +62,9 @@ export function SalesAssistantChat() {
         const events = buffer.split('\n\n')
         buffer = events.pop() ?? ''
         for (const eventChunk of events) {
-          const data = eventChunk.split('\n').find((line) => line.startsWith('data:'))?.slice(5).trim()
+          // JSON.parse accepts the protocol's optional leading space.  Keeping
+          // it here ensures a streamed delta is never trimmed or normalized.
+          const data = eventChunk.split('\n').find((line) => line.startsWith('data:'))?.slice(5)
           if (!data) continue
           const payload = JSON.parse(data) as { type: string; delta?: string; sources?: string[]; session_id?: string }
           if (payload.type === 'meta') {
@@ -117,7 +119,7 @@ export function SalesAssistantChat() {
             {messages.map((message, index) => (
               <div key={`${message.role}-${index}`} className={cn('flex', message.role === 'user' ? 'justify-start' : 'justify-end')}>
                 <div className={cn(
-                  'max-w-[88%] whitespace-pre-line rounded-2xl px-3 py-2.5 text-sm leading-6',
+                  'max-w-[88%] whitespace-pre-wrap break-words rounded-2xl px-3 py-2.5 text-sm leading-6',
                   message.role === 'user' ? 'rounded-tr-sm bg-primary text-primary-foreground' : 'rounded-tl-sm bg-muted text-foreground',
                 )}>
                   {message.content}
