@@ -9,6 +9,7 @@ import json
 import logging
 import os
 import re
+import time
 from pathlib import Path
 from typing import Any
 from urllib.error import HTTPError, URLError
@@ -26,10 +27,11 @@ from backend.app.financial_store import financial_store
 
 
 load_dotenv(Path(__file__).resolve().parent.parent / ".env")
-logger = logging.getLogger(__name__)
+# Uvicorn configures this logger with its server handler, making request audits
+# visible in normal backend logs without exposing credentials or CRM payloads.
+logger = logging.getLogger("uvicorn.error")
 _OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses"
 _CUSTOMER_ID = re.compile(r"\b(C_(?:\d+)|CUST-\d+)\b", re.IGNORECASE)
-_GREETING = re.compile(r"^\s*(سلام|سلام علیکم|درود|وقت بخیر|خوبی|خوبی\?|hello|hi)\s*[!؟?.]*\s*$", re.IGNORECASE)
 
 _REASON_TRANSLATIONS = {
     "high existing risk combined with customer value requires a retention decision.": "این مشتری به دلیل ریسک ریزش و ارزش فروش فعلی، نیازمند اقدام برای حفظ مشتری است.",
@@ -53,8 +55,9 @@ _ACTION_TYPES = {
 
 def _has_untranslated_english(text: str) -> bool:
     """Customer IDs are identifiers, not user-facing English prose."""
-    without_ids = _CUSTOMER_ID.sub("", text)
-    return bool(re.search(r"[A-Za-z]{3,}", without_ids))
+    without_identifiers = _CUSTOMER_ID.sub("", text)
+    without_identifiers = re.sub(r"\b(?:CRM|AI)\b", "", without_identifiers, flags=re.IGNORECASE)
+    return bool(re.search(r"[A-Za-z]{3,}", without_identifiers))
 
 
 def _localized_reason(value: Any) -> str:
@@ -99,6 +102,22 @@ class CrmChatTools:
 
     def get_dashboard_summary(self) -> dict[str, Any]:
         return dashboard_service.get_executive_summary().model_dump()
+
+    def get_dashboard_metrics(self) -> dict[str, Any]:
+        return dashboard_service.get_overview().model_dump()
+
+    def get_sales_copilot_context(self, customer_id: str | None = None) -> dict[str, Any]:
+        """Compact, live CRM context shared with every OpenAI request."""
+        context = {
+            "dashboard_metrics": self.get_dashboard_metrics(),
+            "dashboard_summary": self.get_dashboard_summary(),
+            "priority_customers": self.get_priority_customers(),
+            "top_risk_customers": self.get_top_risk_customers(),
+            "growth_opportunities": self.get_growth_opportunities(),
+        }
+        if customer_id:
+            context["customer_details"] = self.get_customer_details(customer_id)
+        return context
 
     def get_customer_history(self, customer_id: str) -> dict[str, Any] | None:
         if store.get_customer_record(customer_id) is None:
@@ -153,86 +172,39 @@ class SalesAssistantService:
         self.tools = CrmChatTools()
 
     def answer(self, message: str) -> tuple[str, list[str]]:
-        intent = self._classify_intent(message)
-        if intent == "greeting":
-            return (
-                "سلام، من دستیار فروش هوشمند هستم. می‌توانم درباره مشتریان، ریسک ریزش، فرصت‌های رشد و اولویت‌های فروش به شما کمک کنم.",
-                [],
-            )
-        if intent == "unknown":
-            return "لطفاً سؤال خود را درباره مشتریان، فروش یا وضعیت داشبورد مشخص‌تر کنید.", []
-
-        context, sources = self._select_context(message, intent)
+        customer_match = _CUSTOMER_ID.search(message)
+        customer_id = customer_match.group(1).upper() if customer_match else None
+        context = self.tools.get_sales_copilot_context(customer_id)
+        sources = ["شاخص‌های داشبورد", "اولویت‌های فروش", "مشتریان پرریسک", "فرصت‌های رشد"]
+        if customer_id:
+            sources.append("جزئیات و تاریخچه مشتری")
         try:
             answer = self._ask_openai(message, context)
-            if not self._has_managerial_structure(answer, context):
-                raise RuntimeError("OpenAI response did not match the sales-manager format")
         except RuntimeError:
             answer = self._fallback_answer(message, context)
         return answer, sources
 
     @staticmethod
-    def _has_managerial_structure(answer: str, context: dict[str, Any]) -> bool:
-        required = ("نوع اقدام", "دلیل اهمیت", "اقدام پیشنهادی")
-        if "customer_details" in context:
-            customer = context["customer_details"] or {}
-            return all(label in answer for label in required) and str(customer.get("customer_id") or "") in answer
-        if any(key in context for key in ("top_risk_customers", "growth_opportunities", "priority_customers")):
-            return all(label in answer for label in required) and bool(_CUSTOMER_ID.search(answer))
-        return True
-
-    @staticmethod
-    def _classify_intent(message: str) -> str:
-        """Classify before any data-tool call, so greetings stay lightweight."""
-        normalized = message.strip().casefold()
-        if _GREETING.fullmatch(normalized):
-            return "greeting"
-        if _CUSTOMER_ID.search(message):
-            return "customer_specific_query"
-        if any(word in normalized for word in (
-            "وضعیت فروش", "وضعیت داشبورد", "چند مشتری", "خلاصه فروش", "عملکرد فروش", "فروش چگونه",
-        )):
-            return "dashboard_query"
-        if any(word in normalized for word in (
-            "پیگیری", "مهم امروز", "اولویت", "در خطر", "ریزش", "ریسک", "حفظ", "فرصت رشد", "فرصت‌های رشد",
-        )):
-            return "priority_customer_query"
-        return "unknown"
-
-    def _select_context(self, message: str, intent: str) -> tuple[dict[str, Any], list[str]]:
-        customer_match = _CUSTOMER_ID.search(message)
-        if intent == "customer_specific_query" and customer_match:
-            customer_id = customer_match.group(1).upper()
-            details = self.tools.get_customer_details(customer_id)
-            return {"customer_details": details}, ["داده‌های مشتری", "تاریخچه مشتری"]
-
-        normalized = message.casefold()
-        if intent == "priority_customer_query" and any(word in normalized for word in ("ریزش", "ریسک", "حفظ", "در خطر")):
-            return {"top_risk_customers": self.tools.get_top_risk_customers()}, ["داده‌های مشتری", "اولویت‌های فروش"]
-        if intent == "priority_customer_query" and any(word in normalized for word in ("رشد", "فرصت")):
-            return {"growth_opportunities": self.tools.get_growth_opportunities()}, ["داده‌های مشتری", "اولویت‌های فروش"]
-        if intent == "priority_customer_query":
-            return {"priority_customers": self.tools.get_priority_customers()}, ["اولویت‌های فروش"]
-        return {
-            "dashboard_summary": self.tools.get_dashboard_summary(),
-            "priority_customers": self.tools.get_priority_customers(),
-        }, ["خلاصه مدیریتی فروش", "اولویت‌های فروش"]
-
-    @staticmethod
     def _ask_openai(message: str, context: dict[str, Any]) -> str:
         api_key = os.getenv("OPENAI_API_KEY")
         if not api_key:
+            logger.warning("Sales copilot fallback used: OPENAI_API_KEY is not configured")
             raise RuntimeError("OPENAI_API_KEY is not configured")
-        instructions = """شما دستیار فروش هوشمند برای مدیر فروش هستید.
-همیشه فقط به زبان فارسی و با لحن مدیریتی و عملیاتی پاسخ دهید.
-پاسخ را فقط بر اساس نتایج ابزارهای CRM بنویسید و هرگز واقعیت، عدد، مشتری یا اقدامی اضافه نکنید.
-فقط برای پرسش‌های صریح کسب‌وکاری از نتایج CRM استفاده کنید؛ برای سلام و گفت‌وگوی عمومی، دادهٔ CRM ارائه نکنید.
-هیچ متن انگلیسی یا عبارت خام داده‌ها را نمایش ندهید؛ متن‌های ورودی را به فارسی روان تبدیل کنید.
-از اصطلاحات فنی و داخلی مانند rule_based، score و decision_category استفاده نکنید.
-برای فهرست مشتریان، هر مشتری را با «نوع اقدام»، «دلیل اهمیت» و «اقدام پیشنهادی» ارائه کنید.
-اگر داده‌ای وجود ندارد، آن را شفاف و محترمانه اعلام کنید."""
+        model = os.getenv("OPENAI_MODEL", "gpt-5.6")
+        instructions = """You are an intelligent sales assistant for a CRM system.
+
+Your job is to help sales managers make decisions using the provided CRM data.
+You can analyze customer risks, churn probability, revenue at risk, growth opportunities, sales priorities, and recommended actions.
+
+Rules:
+- Always answer in Persian.
+- Be concise, management-oriented, and explain the reason behind every recommendation.
+- Use only the CRM data provided. Never fabricate customers, facts, or numbers.
+- If the CRM data is insufficient, say that more information is needed.
+- Do not expose raw field names, technical implementation details, or English source text to the user.
+- Greetings and general questions must still receive a helpful Persian answer; do not claim CRM facts unless the supplied data supports them."""
         body = json.dumps({
-            "model": os.getenv("OPENAI_MODEL", "gpt-5.6"),
+            "model": model,
             "instructions": instructions,
             "input": json.dumps({"question": message, "crm_tool_results": context}, ensure_ascii=False, default=str),
             "store": False,
@@ -241,8 +213,11 @@ class SalesAssistantService:
         request = Request(_OPENAI_RESPONSES_URL, data=body, headers={
             "Authorization": f"Bearer {api_key}", "Content-Type": "application/json",
         }, method="POST")
+        started_at = time.perf_counter()
+        logger.info("Sales copilot OpenAI request sent: model=%s", model)
         try:
-            with urlopen(request, timeout=20) as response:
+            timeout_seconds = float(os.getenv("OPENAI_TIMEOUT_SECONDS", "40"))
+            with urlopen(request, timeout=timeout_seconds) as response:
                 payload = json.loads(response.read().decode("utf-8"))
             text = payload.get("output_text")
             if not isinstance(text, str):
@@ -256,44 +231,27 @@ class SalesAssistantService:
             if isinstance(text, str) and text.strip():
                 answer = text.strip()
                 if not _has_untranslated_english(answer):
+                    logger.info(
+                        "Sales copilot OpenAI response received: model=%s duration_ms=%d",
+                        model,
+                        (time.perf_counter() - started_at) * 1000,
+                    )
                     return answer
                 raise ValueError("OpenAI response contained untranslated English")
             raise ValueError("OpenAI response did not contain output_text")
         except (HTTPError, URLError, TimeoutError, ValueError, json.JSONDecodeError) as error:
-            logger.warning("Sales assistant OpenAI request failed: %s", error)
+            logger.warning(
+                "Sales copilot fallback used: model=%s duration_ms=%d error=%s",
+                model,
+                (time.perf_counter() - started_at) * 1000,
+                error,
+            )
             raise RuntimeError("OpenAI is unavailable") from error
 
     @staticmethod
     def _fallback_answer(message: str, context: dict[str, Any]) -> str:
-        if "customer_details" in context:
-            customer = context["customer_details"]
-            if not customer:
-                return "برای این شناسه مشتری، داده‌ای در CRM پیدا نشد."
-            churn = (customer.get("churn") or {}).get("churn_probability")
-            evidence = [f"سطح ریسک: {customer.get('risk_level') or 'نامشخص'}"]
-            if isinstance(churn, (int, float)):
-                evidence.append(f"احتمال ریزش ثبت‌شده: {churn:.1%}")
-            evidence.append(f"فروش ۱۲ماهه: {customer.get('annual_sales_trailing_12m') or 0:,.0f}")
-            return "\n".join((
-                f"تحلیل مشتری {customer['customer_id']}",
-                f"نوع اقدام: {customer.get('action_type') or 'پیگیری مشتری'}",
-                "", "دلیل اهمیت:", customer.get("decision_reason") or "دلیل اولویت در داده‌های موجود ثبت نشده است.",
-                "", "شواهد:", *[f"• {item}" for item in evidence],
-                "", "اقدام پیشنهادی:", customer.get("recommended_action") or "اقدام مشخصی ثبت نشده است.",
-            ))
-        customers = context.get("top_risk_customers") or context.get("growth_opportunities") or context.get("priority_customers") or []
-        if customers:
-            heading = "مشتریان پیشنهادی برای پیگیری امروز" if "priority_customers" in context else "مشتریان منتخب"
-            lines = [heading + ":"]
-            for index, item in enumerate(customers, start=1):
-                lines.extend((
-                    "", f"{index}. مشتری {item['customer_id']}",
-                    f"نوع اقدام: {item.get('action_type') or 'پیگیری مشتری'}", "", "دلیل اهمیت:",
-                    item.get('decision_reason') or 'دلیل اولویت در داده‌های موجود ثبت نشده است.',
-                    "", "اقدام پیشنهادی:", item.get('recommended_action') or 'اقدام مشخصی ثبت نشده است.',
-                ))
-            return "\n".join(lines)
-        return "برای این پرسش، دادهٔ کافی در خروجی‌های CRM موجود نیست."
+        """Only used after an OpenAI connectivity or contract failure."""
+        return "در حال حاضر ارتباط با سرویس هوش مصنوعی برقرار نشد. لطفاً چند لحظه دیگر دوباره تلاش کنید."
 
 
 sales_assistant_service = SalesAssistantService()
