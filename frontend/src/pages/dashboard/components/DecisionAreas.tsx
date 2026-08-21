@@ -52,8 +52,10 @@ function PriorityRow({ customer, onSelectCustomer }: { customer: DashboardPriori
   const category = customer.decision_category ?? 'customer_recovery'
   const revenueAtRisk = HIGH_RISK_LEVELS.has(customer.risk_level ?? '') ? formatCurrency(customer.annual_sales_trailing_12m) : '—'
   const mainSignal = customer.main_signal ?? customer.decision_evidence[0] ?? customer.interpretation
-  const why = customer.decision_reason ?? customer.interpretation
-  const recommendedAction = aiExplanation.data?.recommended_action ?? customer.recommended_action
+  const why = aiExplanation.data?.why_it_matters ?? customer.decision_reason ?? customer.interpretation
+  const recommendedAction = aiExplanation.data?.source === 'openai'
+    ? aiExplanation.data.recommended_action
+    : null
   return (
     <article className={`rounded-lg border border-r-4 p-3 ${CATEGORY_TONES[category]}`}>
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -71,7 +73,7 @@ function PriorityRow({ customer, onSelectCustomer }: { customer: DashboardPriori
         <Fact label="فرصت رشد" value={`${customer.opportunity_score}٪`} />
         <Fact label="فوریت" value={toPersianDashboardText(customer.crm_urgency ?? 'عادی')} />
       </div>
-      <p className="mt-2 border-t border-border/70 pt-2 text-sm"><span className="font-semibold">اقدام پیشنهادی: </span>{toPersianDashboardText(recommendedAction)}</p>
+      <p className="mt-2 border-t border-border/70 pt-2 text-sm"><span className="font-semibold">اقدام پیشنهادی AI: </span>{aiExplanation.isLoading ? 'در حال تهیه پیشنهاد…' : recommendedAction ? toPersianDashboardText(recommendedAction) : 'پیشنهاد AI در دسترس نیست.'}</p>
     </article>
   )
 }
