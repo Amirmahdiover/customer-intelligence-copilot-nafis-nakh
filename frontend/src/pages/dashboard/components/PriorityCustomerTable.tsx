@@ -48,24 +48,23 @@ export function PriorityCustomerTable({ customers, onSelectCustomer }: PriorityC
                 const aiExplanation = aiExplanations[index]
                 const aiData = aiExplanation.data
                 const mainSignal = customer.main_signal ?? customer.decision_evidence[0] ?? customer.interpretation
-                const whyItMatters = aiData?.why_it_matters ?? customer.decision_reason ?? customer.interpretation
                 return (
                   <TableRow key={customer.customer_id}>
                     <TableCell className="font-semibold"><button type="button" onClick={() => onSelectCustomer(customer)} className="text-primary hover:underline">{customer.customer_id}</button></TableCell>
                     <TableCell><Badge variant="outline">{CATEGORY_LABELS[category]}</Badge></TableCell>
                     <TableCell className="max-w-64 whitespace-normal text-muted-foreground">{toPersianDashboardText(mainSignal)}</TableCell>
-                    <TableCell className="max-w-72 whitespace-normal text-muted-foreground">{toPersianDashboardText(whyItMatters)}</TableCell>
+                    <TableCell><Badge variant="secondary">{aiExplanation.isLoading ? 'در حال تحلیل' : aiData?.source === 'openai' ? aiData.why_tag : 'AI در دسترس نیست'}</Badge></TableCell>
                     <TableCell>{customer.risk_score == null ? '—' : `${Math.round(customer.risk_score)}٪`}</TableCell>
                     <TableCell>{revenueAtRisk}</TableCell>
                     <TableCell>{customer.opportunity_score}٪</TableCell>
                     <TableCell>{toPersianDashboardText(customer.crm_urgency ?? 'عادی')}</TableCell>
-                    <TableCell className="max-w-80 whitespace-normal">
+                    <TableCell>
                       {aiExplanation.isLoading ? (
-                        <span className="text-muted-foreground">در حال تهیه پیشنهاد AI…</span>
+                        <Badge variant="secondary">در حال تهیه</Badge>
                       ) : aiData?.source === 'openai' ? (
-                        <span>{toPersianDashboardText(aiData.recommended_action)}</span>
+                        <Badge variant="secondary">{aiData.action_tag}</Badge>
                       ) : (
-                        <span className="text-muted-foreground">پیشنهاد AI در دسترس نیست.</span>
+                        <Badge variant="outline">AI در دسترس نیست</Badge>
                       )}
                     </TableCell>
                   </TableRow>

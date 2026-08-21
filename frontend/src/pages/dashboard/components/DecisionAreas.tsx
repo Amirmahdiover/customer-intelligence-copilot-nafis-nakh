@@ -52,9 +52,11 @@ function PriorityRow({ customer, onSelectCustomer }: { customer: DashboardPriori
   const category = customer.decision_category ?? 'customer_recovery'
   const revenueAtRisk = HIGH_RISK_LEVELS.has(customer.risk_level ?? '') ? formatCurrency(customer.annual_sales_trailing_12m) : '—'
   const mainSignal = customer.main_signal ?? customer.decision_evidence[0] ?? customer.interpretation
-  const why = aiExplanation.data?.why_it_matters ?? customer.decision_reason ?? customer.interpretation
-  const recommendedAction = aiExplanation.data?.source === 'openai'
-    ? aiExplanation.data.recommended_action
+  const whyTag = aiExplanation.data?.source === 'openai'
+    ? aiExplanation.data.why_tag
+    : null
+  const actionTag = aiExplanation.data?.source === 'openai'
+    ? aiExplanation.data.action_tag
     : null
   return (
     <article className={`rounded-lg border border-r-4 p-3 ${CATEGORY_TONES[category]}`}>
@@ -66,14 +68,14 @@ function PriorityRow({ customer, onSelectCustomer }: { customer: DashboardPriori
         <span className="inline-flex items-center gap-1 text-xs text-muted-foreground"><Clock3 size={13} />{toPersianDashboardText(customer.crm_urgency ?? 'عادی')}</span>
       </div>
       <p className="mt-2 text-sm text-muted-foreground"><span className="font-semibold text-card-foreground">سیگنال اصلی: </span>{toPersianDashboardText(mainSignal)}</p>
-      <p className="mt-1 text-sm text-muted-foreground"><span className="font-semibold text-card-foreground">چرا مهم است: </span>{toPersianDashboardText(why)}</p>
+      <div className="mt-2 flex items-center gap-2 text-sm"><span className="font-semibold text-card-foreground">چرایی:</span><Badge variant="secondary">{aiExplanation.isLoading ? 'در حال تحلیل' : whyTag ?? 'AI در دسترس نیست'}</Badge></div>
       <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs sm:grid-cols-4">
         <Fact label="احتمال ریزش" value={customer.risk_score == null ? '—' : `${Math.round(customer.risk_score)}٪`} />
         <Fact label="درآمد در خطر" value={revenueAtRisk} />
         <Fact label="فرصت رشد" value={`${customer.opportunity_score}٪`} />
         <Fact label="فوریت" value={toPersianDashboardText(customer.crm_urgency ?? 'عادی')} />
       </div>
-      <p className="mt-2 border-t border-border/70 pt-2 text-sm"><span className="font-semibold">اقدام پیشنهادی AI: </span>{aiExplanation.isLoading ? 'در حال تهیه پیشنهاد…' : recommendedAction ? toPersianDashboardText(recommendedAction) : 'پیشنهاد AI در دسترس نیست.'}</p>
+      <div className="mt-2 flex items-center gap-2 border-t border-border/70 pt-2 text-sm"><span className="font-semibold">اقدام AI:</span><Badge variant="secondary">{aiExplanation.isLoading ? 'در حال تهیه' : actionTag ?? 'AI در دسترس نیست'}</Badge></div>
     </article>
   )
 }

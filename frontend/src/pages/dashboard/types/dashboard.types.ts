@@ -107,6 +107,8 @@ export interface DashboardAIExplanationResponse {
   summary: string
   why_it_matters: string
   recommended_action: string
+  why_tag: string
+  action_tag: string
   source: 'openai' | 'fallback'
   cached: boolean
 }

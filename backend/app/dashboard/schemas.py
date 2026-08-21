@@ -112,6 +112,8 @@ class DashboardAIExplanationResponse(BaseModel):
     summary: str
     why_it_matters: str
     recommended_action: str
+    why_tag: str
+    action_tag: str
     source: Literal["openai", "fallback"]
     cached: bool
 
