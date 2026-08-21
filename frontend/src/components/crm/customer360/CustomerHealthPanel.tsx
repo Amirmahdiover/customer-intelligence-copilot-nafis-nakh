@@ -131,7 +131,8 @@ export function CustomerHealthPanel({ customerId }: CustomerHealthPanelProps) {
   ]
 
   return (
-    <Card className="h-full gap-0 border-border/50 bg-white py-0 shadow-none ring-1 ring-border/25 [--card-spacing:--spacing(4)]">
+    <Card className="relative h-full gap-0 border-border/50 bg-white py-0 shadow-none ring-1 ring-border/25 [--card-spacing:--spacing(4)]">
+      <div className="absolute inset-0 z-20 rounded-xl bg-black" aria-hidden="true" />
       <CardContent className="flex h-full flex-col gap-3 px-4 py-4">
         <div className="flex items-start justify-between gap-2">
           <h2 className="flex items-center gap-2 text-sm font-semibold text-card-foreground">

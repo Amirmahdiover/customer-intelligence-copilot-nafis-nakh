@@ -43,7 +43,8 @@ const QUADRANT_STYLE: Record<
 export function PriorityPortfolioView({ matrix }: PriorityPortfolioViewProps) {
   return (
     <section className="h-full" aria-labelledby="portfolio-view-heading">
-      <Card className="h-full shadow-sm">
+      <Card className="relative h-full shadow-sm">
+        <div className="absolute inset-0 z-20 rounded-xl bg-black" aria-hidden="true" />
         <CardHeader className="pb-2">
           <CardTitle id="portfolio-view-heading">نقشه ریسک و فرصت</CardTitle>
           <div className="mt-1 flex flex-wrap items-start justify-between gap-2">

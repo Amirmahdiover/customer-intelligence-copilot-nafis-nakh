@@ -116,7 +116,8 @@ export function EconomicValueCard({ customerId }: EconomicValueCardProps) {
           </div>
         </div>
 
-        <div className="rounded-lg border border-border/50 bg-muted/30 px-4 py-3">
+        <div className="relative overflow-hidden rounded-lg border border-border/50 bg-muted/30 px-4 py-3">
+          <div className="absolute inset-0 z-20 rounded-lg bg-black" aria-hidden="true" />
           <p className="text-xs text-muted-foreground">نقدینگی مشتری</p>
           <p className="mt-1 text-2xl font-bold tabular-nums text-card-foreground">
             {liquidity ? formatTomanCompact(liquidity.liquidityContribution) : '—'}
