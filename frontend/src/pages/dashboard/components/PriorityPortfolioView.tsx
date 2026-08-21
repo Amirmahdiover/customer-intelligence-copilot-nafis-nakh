@@ -43,15 +43,14 @@ const QUADRANT_STYLE: Record<
 export function PriorityPortfolioView({ matrix }: PriorityPortfolioViewProps) {
   return (
     <section className="h-full" aria-labelledby="portfolio-view-heading">
-      <Card className="relative h-full shadow-sm">
-        <div className="absolute inset-0 z-20 rounded-xl bg-black" aria-hidden="true" />
+      <Card className="h-full bg-black text-white shadow-sm">
         <CardHeader className="pb-2">
           <CardTitle id="portfolio-view-heading">نقشه ریسک و فرصت</CardTitle>
           <div className="mt-1 flex flex-wrap items-start justify-between gap-2">
-            <p className="text-sm font-medium text-card-foreground">
+            <p className="text-sm font-medium text-white">
               ماتریس استراتژیک مشتریان: ارزش اقتصادی × سلامت رابطه
             </p>
-            <span className="inline-flex items-center gap-1.5 rounded-full border bg-muted/50 px-2.5 py-1 text-[11px] text-muted-foreground">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-white/10 px-2.5 py-1 text-[11px] text-white">
               <Scale size={13} aria-hidden="true" />
               {matrix.weighting_note}
             </span>
@@ -59,15 +58,15 @@ export function PriorityPortfolioView({ matrix }: PriorityPortfolioViewProps) {
         </CardHeader>
         <CardContent>
           <div className="relative pr-8 pb-8 pt-1">
-            <span className="absolute right-0 top-2 text-[10px] text-muted-foreground">زیاد</span>
-            <span className="absolute right-0 top-1/2 max-h-[12rem] -translate-y-1/2 text-[10px] leading-none text-muted-foreground [writing-mode:vertical-rl]">
+            <span className="absolute right-0 top-2 text-[10px] text-white/70">زیاد</span>
+            <span className="absolute right-0 top-1/2 max-h-[12rem] -translate-y-1/2 text-[10px] leading-none text-white/70 [writing-mode:vertical-rl]">
               سلامت رابطه و خوش‌قولی
             </span>
-            <span className="absolute right-0 bottom-10 text-[10px] text-muted-foreground">کم</span>
+            <span className="absolute right-0 bottom-10 text-[10px] text-white/70">کم</span>
 
-            <div className="relative min-h-[22rem] overflow-hidden rounded-lg border border-border/80">
-              <div className="pointer-events-none absolute inset-y-0 left-1/2 z-10 border-l border-border/70" />
-              <div className="pointer-events-none absolute inset-x-0 top-1/2 z-10 border-t border-border/70" />
+            <div className="relative min-h-[22rem] overflow-hidden rounded-lg border border-white/15">
+              <div className="pointer-events-none absolute inset-y-0 left-1/2 z-10 border-l border-white/15" />
+              <div className="pointer-events-none absolute inset-x-0 top-1/2 z-10 border-t border-white/15" />
               <div dir="rtl" className="grid min-h-[22rem] grid-cols-2">
                 {QUADRANT_ORDER.map((key) => {
                   const quadrant = matrix.quadrants.find((item) => item.key === key)
@@ -93,11 +92,11 @@ export function PriorityPortfolioView({ matrix }: PriorityPortfolioViewProps) {
             </div>
 
             <div className="pointer-events-none absolute inset-x-0 bottom-0 flex items-end pr-8" dir="ltr">
-              <span className="text-[10px] text-muted-foreground">کم</span>
-              <span className="min-w-0 flex-1 pb-px text-center text-[10px] text-muted-foreground">
+              <span className="text-[10px] text-white/70">کم</span>
+              <span className="min-w-0 flex-1 pb-px text-center text-[10px] text-white/70">
                 ارزش اقتصادی (فروش و سود)
               </span>
-              <span className="text-[10px] text-muted-foreground">زیاد</span>
+              <span className="text-[10px] text-white/70">زیاد</span>
             </div>
           </div>
         </CardContent>

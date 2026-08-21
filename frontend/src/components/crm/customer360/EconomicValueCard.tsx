@@ -62,12 +62,12 @@ export function EconomicValueCard({ customerId }: EconomicValueCardProps) {
     liquidity?.liquidityRatio != null ? Math.round(liquidity.liquidityRatio * 100) : null
   const liquidityTone =
     liquidityRatioPct == null
-      ? 'text-muted-foreground'
+      ? 'text-white/70'
       : liquidityRatioPct > 60
-        ? 'text-emerald-600'
+        ? 'text-emerald-400'
         : liquidityRatioPct >= 30
-          ? 'text-amber-600'
-          : 'text-destructive'
+          ? 'text-amber-400'
+          : 'text-red-400'
 
   return (
     <Card className="h-full gap-0 border-border/50 bg-white py-0 shadow-none ring-1 ring-border/25">
@@ -116,10 +116,9 @@ export function EconomicValueCard({ customerId }: EconomicValueCardProps) {
           </div>
         </div>
 
-        <div className="relative overflow-hidden rounded-lg border border-border/50 bg-muted/30 px-4 py-3">
-          <div className="absolute inset-0 z-20 rounded-lg bg-black" aria-hidden="true" />
-          <p className="text-xs text-muted-foreground">نقدینگی مشتری</p>
-          <p className="mt-1 text-2xl font-bold tabular-nums text-card-foreground">
+        <div className="rounded-lg border border-white/15 bg-black px-4 py-3">
+          <p className="text-xs text-white/70">نقدینگی مشتری</p>
+          <p className="mt-1 text-2xl font-bold tabular-nums text-white">
             {liquidity ? formatTomanCompact(liquidity.liquidityContribution) : '—'}
           </p>
           <p className={cn('mt-1 text-xs font-medium', liquidityTone)}>

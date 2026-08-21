@@ -23,9 +23,9 @@ interface CustomerHealthPanelProps {
 }
 
 const LEVEL_TEXT: Record<HealthLevel, string> = {
-  critical: 'text-red-600',
-  warning: 'text-amber-700',
-  healthy: 'text-emerald-700',
+  critical: 'text-red-400',
+  warning: 'text-amber-400',
+  healthy: 'text-emerald-400',
 }
 
 const LEVEL_STROKE: Record<HealthLevel, string> = {
@@ -67,7 +67,7 @@ function HealthGauge({
       </svg>
       <p className={cn('-mt-8 text-3xl font-bold tabular-nums', LEVEL_TEXT[level])}>
         {formatNumber(Math.round(clamped))}
-        <span className="ms-1 text-sm font-medium text-muted-foreground">از ۱۰۰</span>
+        <span className="ms-1 text-sm font-medium text-white/70">از ۱۰۰</span>
       </p>
     </div>
   )
@@ -131,27 +131,26 @@ export function CustomerHealthPanel({ customerId }: CustomerHealthPanelProps) {
   ]
 
   return (
-    <Card className="relative h-full gap-0 border-border/50 bg-white py-0 shadow-none ring-1 ring-border/25 [--card-spacing:--spacing(4)]">
-      <div className="absolute inset-0 z-20 rounded-xl bg-black" aria-hidden="true" />
+    <Card className="h-full gap-0 border-white/15 bg-black py-0 text-white shadow-none ring-1 ring-white/10 [--card-spacing:--spacing(4)]">
       <CardContent className="flex h-full flex-col gap-3 px-4 py-4">
         <div className="flex items-start justify-between gap-2">
-          <h2 className="flex items-center gap-2 text-sm font-semibold text-card-foreground">
-            <HeartPulse size={16} className="text-red-600" aria-hidden />
+          <h2 className="flex items-center gap-2 text-sm font-semibold text-white">
+            <HeartPulse size={16} className="text-red-500" aria-hidden />
             سلامت رابطه
           </h2>
         </div>
 
         <HealthGauge value={score} level={verdict.level} />
-        <p className="text-center text-xs text-muted-foreground">{verdict.headline}</p>
+        <p className="text-center text-xs text-white/70">{verdict.headline}</p>
 
         <div className="flex flex-col gap-2">
-          <div className={`rounded px-3 py-2 text-xs ${paymentTone === 'positive' ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-900'}`}>
+          <div className={`rounded px-3 py-2 text-xs text-white ${paymentTone === 'positive' ? 'bg-green-500/25' : 'bg-amber-500/25'}`}>
             خوش‌قولی پرداخت
           </div>
-          <div className={`rounded px-3 py-2 text-xs ${interactionTone === 'positive' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-900'}`}>
+          <div className={`rounded px-3 py-2 text-xs text-white ${interactionTone === 'positive' ? 'bg-green-500/25' : 'bg-yellow-500/25'}`}>
             {interactionTone === 'positive' ? 'تعاملات منظم' : 'تعاملات کم'}
           </div>
-          <div className={`rounded px-3 py-2 text-xs ${complaintTone === 'positive' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+          <div className={`rounded px-3 py-2 text-xs text-white ${complaintTone === 'positive' ? 'bg-green-500/25' : 'bg-red-500/25'}`}>
             شکایات: {complaintTone === 'positive' ? 'ندارد' : openComplaints > 0 ? 'متوسط' : 'کم'}
           </div>
         </div>
@@ -160,7 +159,7 @@ export function CustomerHealthPanel({ customerId }: CustomerHealthPanelProps) {
           {details.map((item) => (
             <li key={item.label} className="flex items-start gap-2 text-xs">
               <SignalDot tone={item.tone} className="mt-1" />
-              <span className="text-muted-foreground">{item.label}</span>
+              <span className="text-white/80">{item.label}</span>
             </li>
           ))}
         </ul>
