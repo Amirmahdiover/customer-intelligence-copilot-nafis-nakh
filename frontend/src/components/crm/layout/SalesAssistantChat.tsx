@@ -11,7 +11,7 @@ type ChatMessage = {
   sources?: string[]
 }
 
-type ChatResponse = { answer: string; sources: string[] }
+type ChatResponse = { answer: string; sources: string[]; session_id: string }
 
 const START_MESSAGE: ChatMessage = {
   role: 'assistant',
@@ -22,6 +22,7 @@ export function SalesAssistantChat() {
   const [open, setOpen] = useState(false)
   const [input, setInput] = useState('')
   const [messages, setMessages] = useState<ChatMessage[]>([START_MESSAGE])
+  const [sessionId, setSessionId] = useState(() => crypto.randomUUID())
   const [isLoading, setIsLoading] = useState(false)
   const endRef = useRef<HTMLDivElement>(null)
 
@@ -38,7 +39,8 @@ export function SalesAssistantChat() {
     setInput('')
     setIsLoading(true)
     try {
-      const response = await apiPost<ChatResponse>('/chat', { message })
+      const response = await apiPost<ChatResponse>('/chat', { message, session_id: sessionId })
+      setSessionId(response.session_id)
       setMessages((current) => [...current, { role: 'assistant', content: response.answer, sources: response.sources }])
     } catch {
       setMessages((current) => [...current, {
