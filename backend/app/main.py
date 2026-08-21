@@ -15,6 +15,7 @@ from backend.app.complaint_store import complaint_store, get_complaint_store
 from backend.app.crm_store import crm_store, get_crm_store
 from backend.app.customer_header_store import customer_header_store, get_customer_header_store
 from backend.app.dashboard.routes import router as dashboard_router
+from backend.app.chat_routes import router as chat_router
 from backend.app.data_loader import SNAPSHOT_DATE, store
 from backend.app.financial_store import financial_store, get_financial_store
 from backend.app.value_store import customer_value_store, get_customer_value_store
@@ -84,6 +85,7 @@ app.add_middleware(
 )
 
 app.include_router(dashboard_router)
+app.include_router(chat_router)
 
 
 @app.on_event("startup")

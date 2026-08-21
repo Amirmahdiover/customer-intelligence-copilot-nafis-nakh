@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { cn } from '@/lib/utils'
+import { SalesAssistantChat } from '@/components/crm/layout/SalesAssistantChat'
 
 const NAV_ITEMS = [
   { to: '/crm', end: true, icon: LayoutDashboard, label: 'داشبورد' },
@@ -70,6 +71,7 @@ export function CrmLayout() {
       <main className={cn('min-w-0 flex-1 transition-[margin-right] duration-300 ease-in-out', desktopSidebarCollapsed ? 'lg:mr-16' : 'lg:mr-60')}>
         <Outlet />
       </main>
+      <SalesAssistantChat />
     </div>
   )
 }
