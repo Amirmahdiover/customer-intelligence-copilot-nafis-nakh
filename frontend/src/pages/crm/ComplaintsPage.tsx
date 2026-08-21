@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { AlertCircle, CheckCircle2, ClipboardList, Handshake, Search } from 'lucide-react'
+import { AlertCircle, ClipboardList, Handshake, Search } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -61,7 +61,6 @@ export function ComplaintsPage() {
 
   const openCount = complaints.filter(isOpen).length
   const criticalCount = complaints.filter((complaint) => complaint.severity === 'بحرانی' || complaint.severity === 'Critical').length
-  const resolvedCount = complaints.length - openCount
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 pt-14 lg:px-8 lg:pt-6">
@@ -74,10 +73,9 @@ export function ComplaintsPage() {
         <div className="rounded-md border bg-card px-3 py-2 text-left text-xs text-muted-foreground">مبنای داده: snapshot 2022-06-30</div>
       </header>
 
-      <div className="mb-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mb-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <StatCard label="کل شکایت‌ها" value={complaints.length} icon={ClipboardList} tone="bg-sky-50 text-sky-700" />
         <StatCard label="در انتظار رسیدگی" value={openCount} icon={AlertCircle} tone="bg-amber-50 text-amber-700" />
-        <StatCard label="حل‌شده یا بسته" value={resolvedCount} icon={CheckCircle2} tone="bg-emerald-50 text-emerald-700" />
         <StatCard label="موارد بحرانی" value={criticalCount} icon={AlertCircle} tone="bg-red-50 text-red-700" />
       </div>
 
