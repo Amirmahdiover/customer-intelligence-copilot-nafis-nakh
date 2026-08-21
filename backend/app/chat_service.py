@@ -362,16 +362,18 @@ class SalesAssistantService:
         first_token_at: float | None = None
         try:
             for delta in self._stream_openai(message, context, model):
-                cleaned_delta = _plain_persian_text(delta) if delta.strip() else delta
-                if cleaned_delta:
+                # OpenAI may deliver a space or newline as its own delta.
+                # Never trim or normalize an individual delta: doing so joins
+                # Persian words together in the browser.
+                if delta:
                     if first_token_at is None:
                         first_token_at = time.perf_counter()
                         logger.info(
                             "Sales copilot stream first_token: session_id=%s model=%s ttft_ms=%d retrieval_ms=%d history_ms=%d",
                             session_id, model, (first_token_at - total_started_at) * 1000, retrieval_ms, history_ms,
                         )
-                    answer_parts.append(cleaned_delta)
-                    yield {"type": "delta", "delta": cleaned_delta}
+                    answer_parts.append(delta)
+                    yield {"type": "delta", "delta": delta}
             answer = _plain_persian_text("".join(answer_parts))
             if not answer or _has_untranslated_english(answer):
                 raise RuntimeError("OpenAI streaming response was empty or untranslated")
