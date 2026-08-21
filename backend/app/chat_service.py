@@ -36,6 +36,7 @@ load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 logger = logging.getLogger("uvicorn.error")
 _OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses"
 _CUSTOMER_ID = re.compile(r"\b(C_(?:\d+)|CUST-\d+)\b", re.IGNORECASE)
+_GREETING = re.compile(r"^\s*(سلام|سلام علیکم|درود|وقت بخیر|hello|hi)\s*[!؟?.]*\s*$", re.IGNORECASE)
 _PORTFOLIO_CACHE_TTL_SECONDS = 90
 _CUSTOMER_CACHE_TTL_SECONDS = 300
 _MEMORY_WINDOW = 8
@@ -66,6 +67,16 @@ def _has_untranslated_english(text: str) -> bool:
     without_identifiers = _CUSTOMER_ID.sub("", text)
     without_identifiers = re.sub(r"\b(?:CRM|AI)\b", "", without_identifiers, flags=re.IGNORECASE)
     return bool(re.search(r"[A-Za-z]{3,}", without_identifiers))
+
+
+def _plain_persian_text(text: str) -> str:
+    """Remove markdown tokens while retaining readable plain-text structure."""
+    cleaned = re.sub(r"`([^`]+)`", r"\1", text)
+    cleaned = re.sub(r"^\s{0,3}#{1,6}\s*", "", cleaned, flags=re.MULTILINE)
+    cleaned = re.sub(r"\*{1,3}([^*]+)\*{1,3}", r"\1", cleaned)
+    cleaned = re.sub(r"^\s*[-*+]\s+", "• ", cleaned, flags=re.MULTILINE)
+    cleaned = re.sub(r"\n{3,}", "\n\n", cleaned).strip()
+    return cleaned
 
 
 def _localized_reason(value: Any) -> str:
@@ -187,28 +198,32 @@ class CrmChatTools:
 
     def retrieve_context(self, question: str, customer_id: str | None = None) -> tuple[dict[str, Any], list[str]]:
         """Select the smallest relevant live CRM view for the user's question."""
-        snapshot = self._portfolio_snapshot()
         normalized = question.casefold()
-        context: dict[str, Any] = {"dashboard_metrics": snapshot["dashboard_metrics"]}
-        sources = ["شاخص‌های داشبورد"]
+        if _GREETING.fullmatch(question.strip()):
+            return {}, []
 
         if customer_id:
-            context["customer_details"] = self.get_customer_details(customer_id)
-            context["dashboard_summary"] = snapshot["dashboard_summary"]
-            return context, sources + ["جزئیات و تاریخچه مشتری"]
-        if any(term in normalized for term in ("ریزش", "ریسک", "خطر", "churn", "risk")):
-            context["top_risk_customers"] = snapshot["top_risk_customers"]
-            return context, sources + ["مشتریان پرریسک"]
-        if any(term in normalized for term in ("رشد", "فرصت", "growth", "best customer")):
-            context["growth_opportunities"] = snapshot["growth_opportunities"]
-            context["priority_customers"] = snapshot["priority_customers"][:3]
-            return context, sources + ["فرصت‌های رشد", "اولویت‌های فروش"]
-        if any(term in normalized for term in ("پیگیری", "تماس", "امروز", "today", "contact", "sales team")):
-            context["priority_customers"] = snapshot["priority_customers"]
-            return context, sources + ["اولویت‌های فروش"]
+            snapshot = self._portfolio_snapshot()
+            return {
+                "customer_details": self.get_customer_details(customer_id),
+                "dashboard_metrics": snapshot["dashboard_metrics"],
+            }, ["جزئیات و تاریخچه مشتری", "شاخص‌های داشبورد"]
 
-        context["dashboard_summary"] = snapshot["dashboard_summary"]
-        return context, sources + ["خلاصه مدیریتی فروش"]
+        if any(term in normalized for term in ("ریزش", "ریسک", "خطر", "churn", "risk")):
+            snapshot = self._portfolio_snapshot()
+            return {"top_risk_customers": snapshot["top_risk_customers"]}, ["مشتریان پرریسک"]
+        if any(term in normalized for term in ("رشد", "فرصت", "growth", "best customer")):
+            snapshot = self._portfolio_snapshot()
+            return {
+                "growth_opportunities": snapshot["growth_opportunities"],
+                "priority_customers": snapshot["priority_customers"][:3],
+            }, ["فرصت‌های رشد", "اولویت‌های فروش"]
+        if any(term in normalized for term in ("پیگیری", "تماس", "امروز", "today", "contact", "sales team")):
+            snapshot = self._portfolio_snapshot()
+            return {"priority_customers": snapshot["priority_customers"]}, ["اولویت‌های فروش"]
+
+        snapshot = self._portfolio_snapshot()
+        return {"dashboard_summary": snapshot["dashboard_summary"]}, ["خلاصه مدیریتی فروش"]
 
     def get_customer_history(self, customer_id: str) -> dict[str, Any] | None:
         if store.get_customer_record(customer_id) is None:
@@ -286,16 +301,20 @@ class SalesAssistantService:
         total_started_at = time.perf_counter()
         session_id, memory = conversation_memory_store.get(session_id)
         customer_match = _CUSTOMER_ID.search(message)
-        customer_id = customer_match.group(1).upper() if customer_match else memory.active_customer_id
+        is_greeting = bool(_GREETING.fullmatch(message.strip()))
+        customer_id = customer_match.group(1).upper() if customer_match else (None if is_greeting else memory.active_customer_id)
         retrieval_started_at = time.perf_counter()
         crm_context, sources = self.tools.retrieve_context(message, customer_id)
         retrieval_ms = (time.perf_counter() - retrieval_started_at) * 1000
+        history_started_at = time.perf_counter()
+        conversation_context = conversation_memory_store.context(memory)
+        history_ms = (time.perf_counter() - history_started_at) * 1000
         preparation_started_at = time.perf_counter()
-        context = {"crm_context": crm_context, "conversation_context": conversation_memory_store.context(memory)}
+        context = {"crm_context": crm_context, "conversation_context": conversation_context}
         preparation_ms = (time.perf_counter() - preparation_started_at) * 1000
         model = self._select_model(customer_id)
         try:
-            answer = self._ask_openai(message, context, model)
+            answer = _plain_persian_text(self._ask_openai(message, context, model))
         except RuntimeError:
             answer = self._fallback_answer(message, context)
         answer_customer_match = _CUSTOMER_ID.search(answer)
@@ -306,10 +325,11 @@ class SalesAssistantService:
             customer_id or (answer_customer_match.group(1).upper() if answer_customer_match else None),
         )
         logger.info(
-            "Sales copilot latency: session_id=%s retrieval_ms=%d preparation_ms=%d total_ms=%d",
+            "Sales copilot latency: session_id=%s retrieval_ms=%d preparation_ms=%d history_ms=%d total_ms=%d",
             session_id,
             retrieval_ms,
             preparation_ms,
+            history_ms,
             (time.perf_counter() - total_started_at) * 1000,
         )
         return answer, sources, session_id
@@ -317,8 +337,9 @@ class SalesAssistantService:
     @staticmethod
     def _select_model(customer_id: str | None) -> str:
         """Allow a faster default model while retaining an optional complex-analysis model."""
-        fast_model = os.getenv("OPENAI_MODEL_FAST", os.getenv("OPENAI_MODEL", "gpt-5.6"))
-        return os.getenv("OPENAI_MODEL_COMPLEX", fast_model) if customer_id else fast_model
+        fast_model = os.getenv("OPENAI_MODEL_FAST", "gpt-4.1-mini")
+        complex_model = os.getenv("OPENAI_MODEL_COMPLEX", os.getenv("OPENAI_MODEL", fast_model))
+        return complex_model if customer_id else fast_model
 
     @staticmethod
     def _ask_openai(message: str, context: dict[str, Any], model: str) -> str:
@@ -339,11 +360,14 @@ Rules:
 - Do not expose raw field names, technical implementation details, or English source text to the user.
 - Greetings and general questions must still receive a helpful Persian answer; do not claim CRM facts unless the supplied data supports them.
 For customer analysis, structure the answer as: وضعیت فعلی، چرا مهم است، شواهد از CRM، اقدام پیشنهادی.
-Use historical evidence only when it is present in the CRM context."""
+Use historical evidence only when it is present in the CRM context.
+Return plain Persian text only. Do not use Markdown symbols such as **, #, backticks, or Markdown list markers; use simple Persian headings and the • character when a list is necessary."""
+        context_preparation_started_at = time.perf_counter()
+        input_text = json.dumps({"question": message, **context}, ensure_ascii=False, default=str)
         body = json.dumps({
             "model": model,
             "instructions": instructions,
-            "input": json.dumps({"question": message, **context}, ensure_ascii=False, default=str),
+            "input": input_text,
             "store": False,
             "max_output_tokens": 550,
         }, ensure_ascii=False).encode("utf-8")
@@ -351,11 +375,17 @@ Use historical evidence only when it is present in the CRM context."""
             "Authorization": f"Bearer {api_key}", "Content-Type": "application/json",
         }, method="POST")
         started_at = time.perf_counter()
-        logger.info("Sales copilot OpenAI request sent: model=%s", model)
+        logger.info(
+            "Sales copilot OpenAI request started: model=%s context_size_bytes=%d context_preparation_ms=%d",
+            model,
+            len(input_text.encode("utf-8")),
+            (started_at - context_preparation_started_at) * 1000,
+        )
         try:
             timeout_seconds = float(os.getenv("OPENAI_TIMEOUT_SECONDS", "40"))
             with urlopen(request, timeout=timeout_seconds) as response:
                 payload = json.loads(response.read().decode("utf-8"))
+            processing_started_at = time.perf_counter()
             text = payload.get("output_text")
             if not isinstance(text, str):
                 for output in payload.get("output", []):
@@ -369,9 +399,10 @@ Use historical evidence only when it is present in the CRM context."""
                 answer = text.strip()
                 if not _has_untranslated_english(answer):
                     logger.info(
-                        "Sales copilot OpenAI response received: model=%s duration_ms=%d",
+                        "Sales copilot OpenAI response received: model=%s request_ms=%d response_processing_ms=%d",
                         model,
-                        (time.perf_counter() - started_at) * 1000,
+                        (processing_started_at - started_at) * 1000,
+                        (time.perf_counter() - processing_started_at) * 1000,
                     )
                     return answer
                 raise ValueError("OpenAI response contained untranslated English")
