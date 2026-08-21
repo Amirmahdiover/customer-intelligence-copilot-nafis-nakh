@@ -6,6 +6,7 @@ from typing import Any
 
 from backend.app.complaint_store import complaint_store
 from backend.app.crm_store import crm_store
+from backend.app.customer_ai_action import build_rule_based_decision, extract_customer_factors
 from backend.app.dashboard.ai_service import dashboard_ai_service
 from backend.app.dashboard.logic.actions import build_recommended_actions
 from backend.app.dashboard.logic.decisions import classify_dashboard_decision
@@ -16,6 +17,7 @@ from backend.app.dashboard.logic.opportunity import (
 from backend.app.dashboard.logic.risk import HIGH_RISK_LEVELS, build_risk_explanation
 from backend.app.dashboard.logic.summary import build_executive_summary
 from backend.app.dashboard.schemas import (
+    CustomerAIActionResponse,
     DashboardMetric,
     DashboardAIExecutiveSummaryResponse,
     DashboardAIExplanationResponse,
@@ -248,6 +250,30 @@ class DashboardService:
             raise KeyError(customer_id)
         explanation = dashboard_ai_service.explain_customer(customer)
         return DashboardAIExplanationResponse(customer_id=customer_id, **explanation)
+
+    def get_customer_ai_action(self, customer_id: str) -> CustomerAIActionResponse:
+        """AI-narrated operational action for one customer.
+
+        Unlike ``get_ai_explanation`` above, this does a single-record lookup
+        instead of rebuilding read models for the whole portfolio, so it stays
+        fast no matter how many customers exist.
+        """
+        record = store.get_customer_record(customer_id)
+        if record is None:
+            raise KeyError(customer_id)
+        factors = extract_customer_factors(customer_id, record)
+        baseline = build_rule_based_decision(factors)
+        narration = dashboard_ai_service.recommend_customer_action(factors, baseline)
+        return CustomerAIActionResponse(
+            customer_id=customer_id,
+            category=baseline["category"],
+            category_label=baseline["category_label"],
+            priority=baseline["priority"],
+            action=narration["action"],
+            reason=narration["reason"],
+            source=narration["source"],
+            cached=narration["cached"],
+        )
 
     def get_ai_executive_summary(self) -> DashboardAIExecutiveSummaryResponse:
         """Interpret the current Dashboard snapshot using OpenAI or a transparent fallback."""

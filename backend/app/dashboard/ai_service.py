@@ -58,6 +58,23 @@ def _fallback_explanation(customer: dict[str, Any]) -> dict[str, str]:
     }
 
 
+_CUSTOMER_ACTION_FALLBACKS = {
+    "customer_recovery": "با مشتری تماس بگیرید و علت کاهش تعامل را بررسی کنید.",
+    "financial_followup": "وضعیت مالی و اعتباری مشتری را با تیم مالی پیگیری کنید.",
+    "service_recovery": "شکایات ثبت‌شده را بررسی و با مشتری تماس بگیرید.",
+    "growth_opportunity": "فرصت افزایش سهم خرید مشتری را با یک پیشنهاد متناسب بررسی کنید.",
+    "routine_follow_up": "طبق برنامه معمول با مشتری در ارتباط بمانید.",
+}
+
+
+def _fallback_customer_action(baseline: dict[str, Any]) -> dict[str, str]:
+    category = str(baseline.get("category") or "routine_follow_up")
+    return {
+        "action": _CUSTOMER_ACTION_FALLBACKS.get(category, _CUSTOMER_ACTION_FALLBACKS["routine_follow_up"]),
+        "reason": str(baseline.get("reason") or ""),
+    }
+
+
 def _fallback_executive_summary(
     overview: dict[str, Any], priorities: list[dict[str, Any]]
 ) -> dict[str, str]:
@@ -132,14 +149,21 @@ class DashboardAIService:
             raise ValueError("OpenAI response did not match the Dashboard contract")
         return {key: decoded[key].strip() for key in keys}
 
-    def _ask_openai(self, *, instructions: str, input_text: str, keys: tuple[str, ...]) -> dict[str, str]:
+    def _ask_openai(
+        self,
+        *,
+        instructions: str,
+        input_text: str,
+        keys: tuple[str, ...],
+        model: str | None = None,
+    ) -> dict[str, str]:
         api_key = os.getenv("OPENAI_API_KEY")
         if not api_key:
             raise RuntimeError("OPENAI_API_KEY is not configured")
 
         body = json.dumps(
             {
-                "model": os.getenv("OPENAI_MODEL", "gpt-5.6"),
+                "model": model or os.getenv("OPENAI_MODEL", "gpt-5.6"),
                 "instructions": instructions,
                 "input": input_text,
                 "store": False,
@@ -201,6 +225,39 @@ class DashboardAIService:
             source = "openai"
         except RuntimeError:
             result = _fallback_explanation(customer)
+            source = "fallback"
+        self._store(key, result, source)
+        return {**result, "source": source, "cached": False}
+
+    def recommend_customer_action(
+        self, factors: dict[str, Any], baseline: dict[str, Any]
+    ) -> dict[str, Any]:
+        """Narrate the deterministic baseline into a short operational action.
+        Cache key is a hash of the factors + baseline, so unchanged customer
+        data returns instantly without a repeat OpenAI call."""
+        payload = {"factors": factors, "baseline": baseline}
+        key = self._cache_key("customer_action", payload)
+        cached = self._cached(key)
+        if cached:
+            result, source = cached
+            return {**result, "source": source, "cached": True}
+
+        instructions = (
+            "شما دستیار عملیاتی یک اپراتور فروش/پشتیبانی مشتری هستید. فقط بر اساس داده‌های ورودی، "
+            "بدون حدس زدن یا افزودن اطلاعات جدید، یک اقدام پیشنهادی کوتاه و عملیاتی برای اپراتور "
+            "بنویسید. درباره مدل، امتیاز یا الگوریتم صحبت نکنید. خروجی فقط JSON معتبر با کلیدهای "
+            "action و reason باشد؛ هر مقدار یک جمله کوتاه فارسی باشد."
+        )
+        try:
+            result = self._ask_openai(
+                instructions=instructions,
+                input_text=f"فاکتورهای مشتری و تصمیم پایه:\n{json.dumps(payload, ensure_ascii=False, default=str)}",
+                keys=("action", "reason"),
+                model=os.getenv("OPENAI_MODEL_CUSTOMER_ACTION", "gpt-4o-mini"),
+            )
+            source = "openai"
+        except RuntimeError:
+            result = _fallback_customer_action(baseline)
             source = "fallback"
         self._store(key, result, source)
         return {**result, "source": source, "cached": False}
