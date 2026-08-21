@@ -250,7 +250,7 @@ export function SalesAssistantChat() {
         onClick={() => setOpen((value) => !value)}
         aria-label={open ? 'بستن نفیس، دستیار فروش' : 'باز کردن نفیس، دستیار فروش'}
         title={open ? 'بستن نفیس' : 'نفیس، دستیار فروش هوشمند'}
-        className="sales-copilot-trigger size-[3.75rem] rounded-full border-2 border-white/30 bg-gradient-to-br from-indigo-600 via-violet-600 to-cyan-600 text-white shadow-xl shadow-indigo-500/35 transition-transform hover:scale-105 hover:shadow-indigo-500/50"
+        className="sales-copilot-trigger size-[3.75rem] rounded-full border-2 border-white/20 bg-primary text-primary-foreground shadow-xl shadow-black/25 transition-transform hover:scale-105 hover:bg-primary/90"
       >
         {open ? <X size={24} /> : <Bot size={29} strokeWidth={2.25} />}
       </Button>
