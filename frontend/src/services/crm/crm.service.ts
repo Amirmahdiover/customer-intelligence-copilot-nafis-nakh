@@ -21,6 +21,7 @@ import type {
   ApiActionResponse,
   ApiBestOfferResponse,
   ApiChurnResponse,
+  ApiComplaintsListResponse,
   ApiComplaintsCountResponse,
   ApiCrmInteractionsListResponse,
   ApiCrmLatestResponse,
@@ -358,6 +359,14 @@ export async function getCustomerComplaints(
 
   return response.complaints.map((record, index) =>
     mapComplaintDetail(response.customer_id, record, index),
+  )
+}
+
+export async function getComplaints(): Promise<Complaint[]> {
+  const response = await apiFetch<ApiComplaintsListResponse>('/complaints')
+
+  return response.complaints.map((record, index) =>
+    mapComplaintDetail(record.customer_id, record, index),
   )
 }
 

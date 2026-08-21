@@ -51,11 +51,24 @@ def _fallback_explanation(customer: dict[str, Any]) -> dict[str, str]:
         "sales_opportunity": "پیگیری فرصت فروش",
     }
     label = labels.get(category, "پیگیری فروش")
+    tags = {
+        "customer_recovery": ("ریسک ریزش", "تماس فوری"),
+        "growth_opportunity": ("ظرفیت رشد", "پیشنهاد توسعه"),
+        "sales_opportunity": ("فوریت فروش", "پیگیری فروش"),
+    }
+    why_tag, action_tag = tags.get(category, ("پیگیری مشتری", "بررسی مشتری"))
     return {
         "summary": f"بر پایه داده‌های موجود، این مشتری در اولویت «{label}» قرار دارد.",
         "why_it_matters": "شواهد ثبت‌شده و ارزش فروش این مشتری، پیگیری هدفمند تیم فروش را ضروری می‌کند.",
         "recommended_action": _persian_action(customer.get("recommended_action"), category),
+        "why_tag": why_tag,
+        "action_tag": action_tag,
     }
+
+
+def _short_tag(value: str) -> str:
+    """Keep Dashboard list labels presentation-friendly without changing analysis text."""
+    return " ".join(value.strip().split()[:3])
 
 
 _CUSTOMER_ACTION_FALLBACKS = {
@@ -193,7 +206,8 @@ class DashboardAIService:
             key: customer.get(key)
             for key in (
                 "customer_id", "decision_category", "business_value", "decision_reason",
-                "decision_evidence", "recommended_action", "latest_crm_next_action", "crm_urgency",
+                "decision_evidence", "main_signal", "recommended_action", "latest_crm_next_action", "crm_urgency",
+                "customer_profile", "crm_history", "complaints", "financial_status", "not_due_invoices",
             )
         }
         payload["signals"] = [
@@ -204,7 +218,8 @@ class DashboardAIService:
             }
             for signal in customer.get("signals", [])
         ]
-        key = self._cache_key("customer", payload)
+        # The v2 key avoids serving the previous three-field cached contract.
+        key = self._cache_key("customer-v2", payload)
         cached = self._cached(key)
         if cached:
             result, source = cached
@@ -216,12 +231,18 @@ class DashboardAIService:
             "چیزی را حدس نزنید. خروجی فقط JSON معتبر با کلیدهای summary، why_it_matters و "
             "recommended_action باشد؛ هر مقدار یک جمله کوتاه فارسی باشد."
         )
+        instructions += (
+            " Output valid JSON must also include why_tag and action_tag. "
+            "Each tag must be Persian, have one to three words, and contain no punctuation."
+        )
         try:
             result = self._ask_openai(
                 instructions=instructions,
                 input_text=f"داده تصمیم مشتری:\n{json.dumps(payload, ensure_ascii=False, default=str)}",
-                keys=("summary", "why_it_matters", "recommended_action"),
+                keys=("summary", "why_it_matters", "recommended_action", "why_tag", "action_tag"),
             )
+            result["why_tag"] = _short_tag(result["why_tag"])
+            result["action_tag"] = _short_tag(result["action_tag"])
             source = "openai"
         except RuntimeError:
             result = _fallback_explanation(customer)

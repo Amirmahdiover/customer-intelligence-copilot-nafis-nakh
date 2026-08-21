@@ -46,6 +46,7 @@ export interface DashboardPriorityCustomer {
   decision_score: number | null
   decision_reason: string | null
   decision_evidence: string[]
+  main_signal: string | null
   signals: DashboardSignal[]
   interpretation: string
   recommended_action: string
@@ -106,6 +107,8 @@ export interface DashboardAIExplanationResponse {
   summary: string
   why_it_matters: string
   recommended_action: string
+  why_tag: string
+  action_tag: string
   source: 'openai' | 'fallback'
   cached: boolean
 }

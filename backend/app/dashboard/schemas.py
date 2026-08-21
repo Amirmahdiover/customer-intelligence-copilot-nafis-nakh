@@ -48,6 +48,7 @@ class DashboardPriorityCustomer(BaseModel):
     decision_score: int | None = None
     decision_reason: str | None = None
     decision_evidence: list[str] = Field(default_factory=list)
+    main_signal: str | None = None
     signals: list[DashboardSignal]
     interpretation: str
     recommended_action: str
@@ -111,6 +112,8 @@ class DashboardAIExplanationResponse(BaseModel):
     summary: str
     why_it_matters: str
     recommended_action: str
+    why_tag: str
+    action_tag: str
     source: Literal["openai", "fallback"]
     cached: bool
 

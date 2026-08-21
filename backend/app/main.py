@@ -15,6 +15,7 @@ from .complaint_store import complaint_store, get_complaint_store
 from .crm_store import crm_store, get_crm_store
 from .customer_header_store import customer_header_store, get_customer_header_store
 from .dashboard.routes import router as dashboard_router
+from .chat_routes import router as chat_router
 from .data_loader import SNAPSHOT_DATE, store
 from .financial_store import financial_store, get_financial_store
 from .value_store import customer_value_store, get_customer_value_store
@@ -31,6 +32,7 @@ from .schemas import (
     BestOfferResponse,
     ChurnResponse,
     ComplaintsCountResponse,
+    ComplaintsListResponse,
     CrmInteractionsListResponse,
     CrmLatestResponse,
     CustomerComplaintsListResponse,
@@ -91,6 +93,7 @@ app.add_middleware(
 )
 
 app.include_router(dashboard_router)
+app.include_router(chat_router)
 
 
 @app.on_event("startup")
@@ -167,6 +170,18 @@ def get_customer(customer_id: str = CUSTOMER_ID_PATH):
 )
 def get_customer_kpis(customer_id: str = CUSTOMER_ID_PATH):
     return _get_customer_or_404(customer_id)
+
+
+@app.get(
+    "/complaints",
+    response_model=ComplaintsListResponse,
+    tags=["Complaints"],
+    summary="List all customer complaints",
+    description="Returns the normalized complaint records for the complaints workspace.",
+)
+def get_all_complaints():
+    complaints = complaint_store.list_all()
+    return ComplaintsListResponse(total=len(complaints), complaints=complaints)
 
 
 @app.get(

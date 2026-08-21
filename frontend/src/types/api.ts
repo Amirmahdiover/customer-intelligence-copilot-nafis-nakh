@@ -253,6 +253,15 @@ export interface ApiCustomerComplaintsResponse {
   complaints: ApiComplaintDetail[]
 }
 
+export interface ApiComplaintListItem extends ApiComplaintDetail {
+  customer_id: string
+}
+
+export interface ApiComplaintsListResponse {
+  total: number
+  complaints: ApiComplaintListItem[]
+}
+
 export type ApiCreditStatus = 'safe' | 'warning' | 'critical' | 'over_limit' | 'unknown'
 
 export interface ApiNotDueInvoicesSummary {

@@ -1,10 +1,12 @@
 import { Link } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
 import { ArrowUpLeft, Clock3 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { formatCurrency } from '@/lib/formatters'
 import type { DashboardDecisionCategory, DashboardPriorityCustomer } from '../types/dashboard.types'
 import { toPersianDashboardText } from '../persian'
+import { getDashboardAIExplanation } from '../services/dashboard.service'
 
 interface DecisionAreasProps {
   priorities: DashboardPriorityCustomer[]
@@ -41,9 +43,21 @@ export function DecisionAreas({ priorities, onSelectCustomer }: DecisionAreasPro
 }
 
 function PriorityRow({ customer, onSelectCustomer }: { customer: DashboardPriorityCustomer; onSelectCustomer: (customer: DashboardPriorityCustomer) => void }) {
+  const aiExplanation = useQuery({
+    queryKey: ['dashboard', 'ai-explanation', customer.customer_id],
+    queryFn: () => getDashboardAIExplanation(customer.customer_id),
+    staleTime: 15 * 60 * 1000,
+    retry: 0,
+  })
   const category = customer.decision_category ?? 'customer_recovery'
   const revenueAtRisk = HIGH_RISK_LEVELS.has(customer.risk_level ?? '') ? formatCurrency(customer.annual_sales_trailing_12m) : '—'
-  const why = customer.decision_evidence[0] ?? customer.decision_reason ?? customer.interpretation
+  const mainSignal = customer.main_signal ?? customer.decision_evidence[0] ?? customer.interpretation
+  const whyTag = aiExplanation.data?.source === 'openai'
+    ? aiExplanation.data.why_tag
+    : null
+  const actionTag = aiExplanation.data?.source === 'openai'
+    ? aiExplanation.data.action_tag
+    : null
   return (
     <article className={`rounded-lg border border-r-4 p-3 ${CATEGORY_TONES[category]}`}>
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -53,14 +67,15 @@ function PriorityRow({ customer, onSelectCustomer }: { customer: DashboardPriori
         </div>
         <span className="inline-flex items-center gap-1 text-xs text-muted-foreground"><Clock3 size={13} />{toPersianDashboardText(customer.crm_urgency ?? 'عادی')}</span>
       </div>
-      <p className="mt-2 text-sm text-muted-foreground"><span className="font-semibold text-card-foreground">دلیل اهمیت: </span>{toPersianDashboardText(why)}</p>
+      <p className="mt-2 text-sm text-muted-foreground"><span className="font-semibold text-card-foreground">سیگنال اصلی: </span>{toPersianDashboardText(mainSignal)}</p>
+      <div className="mt-2 flex items-center gap-2 text-sm"><span className="font-semibold text-card-foreground">چرایی:</span><Badge variant="secondary">{aiExplanation.isLoading ? 'در حال تحلیل' : whyTag ?? 'AI در دسترس نیست'}</Badge></div>
       <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs sm:grid-cols-4">
         <Fact label="احتمال ریزش" value={customer.risk_score == null ? '—' : `${Math.round(customer.risk_score)}٪`} />
         <Fact label="درآمد در خطر" value={revenueAtRisk} />
         <Fact label="فرصت رشد" value={`${customer.opportunity_score}٪`} />
         <Fact label="فوریت" value={toPersianDashboardText(customer.crm_urgency ?? 'عادی')} />
       </div>
-      <p className="mt-2 border-t border-border/70 pt-2 text-sm"><span className="font-semibold">اقدام بعدی: </span>{toPersianDashboardText(customer.recommended_action)}</p>
+      <div className="mt-2 flex items-center gap-2 border-t border-border/70 pt-2 text-sm"><span className="font-semibold">اقدام AI:</span><Badge variant="secondary">{aiExplanation.isLoading ? 'در حال تهیه' : actionTag ?? 'AI در دسترس نیست'}</Badge></div>
     </article>
   )
 }

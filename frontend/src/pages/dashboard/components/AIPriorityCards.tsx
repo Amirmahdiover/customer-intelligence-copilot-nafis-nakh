@@ -46,12 +46,8 @@ export function AIPriorityCards({ customers }: AIPriorityCardsProps) {
             </CardHeader>
             <CardContent className="space-y-3 text-sm">
               <div>
-                <span className="font-semibold text-card-foreground">نشانه‌ها</span>
-                <ul className="mt-1 list-disc space-y-1 pr-4 text-muted-foreground">
-                  {customer.signals.slice(0, 2).map((signal) => (
-                    <li key={`${customer.customer_id}-${signal.name}`}>{toPersianDashboardText(signal.interpretation)}</li>
-                  ))}
-                </ul>
+                <span className="font-semibold text-card-foreground">سیگنال اصلی</span>
+                <p className="mt-1 text-muted-foreground">{toPersianDashboardText(customer.main_signal ?? customer.signals[0]?.interpretation ?? customer.interpretation)}</p>
               </div>
               <div>
                 <span className="font-semibold text-card-foreground">تفسیر</span>

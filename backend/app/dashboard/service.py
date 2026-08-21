@@ -7,6 +7,7 @@ from typing import Any
 from ..complaint_store import complaint_store
 from ..crm_store import crm_store
 from ..customer_ai_action import build_rule_based_decision, extract_customer_factors
+from ..financial_store import financial_store
 from .ai_service import dashboard_ai_service
 from .logic.actions import build_recommended_actions
 from .logic.decisions import classify_dashboard_decision
@@ -110,6 +111,11 @@ class DashboardService:
             risk_weight + opportunity["opportunity_score"] // 3 + urgency_weight,
         )
         signals = [DashboardSignal(**signal) for signal in risk["signals"]]
+        main_signal = (
+            (decision["decision_evidence"][0] if decision and decision["decision_evidence"] else None)
+            or (signals[0].interpretation if signals else None)
+            or actions["primary_interpretation"]
+        )
         return {
             "customer_id": customer_id,
             "status": status,
@@ -127,6 +133,7 @@ class DashboardService:
             "decision_score": decision["decision_score"] if decision else None,
             "decision_reason": decision["decision_reason"] if decision else None,
             "decision_evidence": decision["decision_evidence"] if decision else [],
+            "main_signal": main_signal,
             "signals": signals,
             "interpretation": actions["primary_interpretation"],
             "recommended_action": actions["primary_action"],
@@ -262,6 +269,25 @@ class DashboardService:
         )
         if customer is None:
             raise KeyError(customer_id)
+        # Read-only facts enrich the AI narration; they never alter the
+        # deterministic priority, scoring, or Dashboard decision.
+        record = store.get_customer_record(customer_id) or {}
+        customer["customer_profile"] = {
+            "segment": record.get("Customer_Segment"),
+            "status": record.get("Customer_Status"),
+            "last_order_date": record.get("Last_Order_Date"),
+            "days_since_last_order": record.get("Days_Since_Last_Order"),
+            "purchase_frequency": record.get("Frequency_Orders"),
+            "average_order_interval_days": record.get("Avg_Order_Interval_Days"),
+            "annual_sales": record.get("Annual_Sales_Trailing12M"),
+            "recent_complaints": record.get("Recent_Complaints_12M"),
+            "lifetime_complaints": record.get("Lifetime_Complaints"),
+            "payment_delay_days": record.get("Avg_Payment_Delay_Days"),
+        }
+        customer["crm_history"] = crm_store.list_interactions(customer_id)[:5]
+        customer["complaints"] = complaint_store.list_for_customer(customer_id)[:5]
+        customer["financial_status"] = financial_store.get_status(customer_id)
+        customer["not_due_invoices"] = financial_store.list_not_due_invoices(customer_id)[:5]
         explanation = dashboard_ai_service.explain_customer(customer)
         return DashboardAIExplanationResponse(customer_id=customer_id, **explanation)
 
