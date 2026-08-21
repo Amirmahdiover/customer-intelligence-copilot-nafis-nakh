@@ -23,6 +23,7 @@ import type {
   ApiComplaintsCountResponse,
   ApiCrmInteractionsListResponse,
   ApiCrmLatestResponse,
+  ApiCustomerAIActionResponse,
   ApiCustomerComplaintsResponse,
   ApiCustomerFinancialResponse,
   ApiCustomerHeaderListResponse,
@@ -453,6 +454,23 @@ export async function getCustomerActions(
   )
 
   return mapAction(action, profile)
+}
+
+/**
+ * ============================================================
+ * CUSTOMER AI ACTION
+ * ============================================================
+ *
+ * Server-side OpenAI narration of a deterministic rule-based baseline
+ * (risk, RFM, purchase status, debt, tickets). The browser never receives
+ * the OpenAI key; the backend caches by a hash of the input factors.
+ */
+export async function getCustomerAIAction(
+  id: string,
+): Promise<ApiCustomerAIActionResponse> {
+  return apiFetch<ApiCustomerAIActionResponse>(
+    `/dashboard/ai/customer-action/${encodeURIComponent(id)}`,
+  )
 }
 
 /**

@@ -11,6 +11,7 @@ import { CrmSection } from '@/components/crm/customer360/CrmSection'
 import { CustomerRisk } from '@/components/crm/customer360/CustomerRisk'
 import { InsightCard } from '@/components/crm/customer360/InsightCard'
 import { RecommendedAction } from '@/components/crm/customer360/RecommendedAction'
+import { CustomerAIAction } from '@/components/crm/customer360/CustomerAIAction'
 import { BestOfferCard } from '@/components/crm/customer360/BestOfferCard'
 import { ChurnPredictionCard } from '@/components/crm/customer360/ChurnPredictionCard'
 
@@ -40,6 +41,7 @@ export function Customer360() {
         <div>
           <InsightCard customerId={id} />
           <RecommendedAction customerId={id} />
+          <CustomerAIAction customerId={id} />
           <BestOfferCard customerId={id} />
           <ChurnPredictionCard customerId={id} />
         </div>
