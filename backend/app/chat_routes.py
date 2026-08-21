@@ -19,6 +19,10 @@ class ChatResponse(BaseModel):
     session_id: str
 
 
+class ChatSuggestionsResponse(BaseModel):
+    suggestions: list[dict[str, str]]
+
+
 router = APIRouter(tags=["AI Sales Assistant"])
 
 
@@ -39,6 +43,11 @@ def stream_chat(request: ChatRequest) -> StreamingResponse:
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
+
+
+@router.get("/chat/suggestions/{session_id}", response_model=ChatSuggestionsResponse)
+def chat_suggestions(session_id: str) -> ChatSuggestionsResponse:
+    return ChatSuggestionsResponse(suggestions=sales_assistant_service.suggested_questions(session_id))
 
 
 @router.delete("/chat/sessions/{session_id}", status_code=204, summary="Clear a sales-assistant conversation")

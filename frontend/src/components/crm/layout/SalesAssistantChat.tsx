@@ -74,6 +74,7 @@ export function SalesAssistantChat() {
   const [input, setInput] = useState('')
   const [messages, setMessages] = useState<ChatMessage[]>([START_MESSAGE])
   const [sessionId, setSessionId] = useState(() => crypto.randomUUID())
+  const [aiQuickActions, setAiQuickActions] = useState<QuickAction[] | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const endRef = useRef<HTMLDivElement>(null)
 
@@ -81,12 +82,26 @@ export function SalesAssistantChat() {
     endRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, isLoading])
 
-  const quickActions = conversationQuickActions(messages)
+  const quickActions = aiQuickActions ?? INITIAL_QUICK_ACTIONS
+
+  async function loadAiQuickActions(activeSessionId: string) {
+    try {
+      const response = await fetch(apiUrl(`/chat/suggestions/${encodeURIComponent(activeSessionId)}`))
+      if (!response.ok) return
+      const payload = await response.json() as { suggestions?: QuickAction[] }
+      if (payload.suggestions?.length) {
+        setAiQuickActions(payload.suggestions)
+      }
+    } catch {
+      // Keep the initial suggestions if the optional AI follow-up call fails.
+    }
+  }
 
   async function sendMessage(message: string) {
     if (!message || isLoading) return
 
     const assistantMessageIndex = messages.length + 1
+    setAiQuickActions(null)
     setMessages((current) => [...current, { role: 'user', content: message }, { role: 'assistant', content: '' }])
     setInput('')
     setIsLoading(true)
@@ -103,6 +118,7 @@ export function SalesAssistantChat() {
       let buffer = ''
       let streamedAnswer = ''
       let sources: string[] | undefined
+      let resolvedSessionId = sessionId
       let lastUiUpdate = 0
       const updateAssistant = () => setMessages((current) => current.map((item, index) => (
         index === assistantMessageIndex ? { ...item, content: streamedAnswer, sources } : item
@@ -121,7 +137,10 @@ export function SalesAssistantChat() {
           if (!data) continue
           const payload = JSON.parse(data) as { type: string; delta?: string; sources?: string[]; session_id?: string }
           if (payload.type === 'meta') {
-            if (payload.session_id) setSessionId(payload.session_id)
+            if (payload.session_id) {
+              resolvedSessionId = payload.session_id
+              setSessionId(payload.session_id)
+            }
             sources = payload.sources
           }
           if (payload.type === 'delta' && payload.delta) {
@@ -138,6 +157,7 @@ export function SalesAssistantChat() {
         }
       }
       updateAssistant()
+      await loadAiQuickActions(resolvedSessionId)
     } catch {
       setMessages((current) => current.map((item, index) => index === assistantMessageIndex ? {
         ...item,
