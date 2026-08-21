@@ -29,6 +29,7 @@ load_dotenv(Path(__file__).resolve().parent.parent / ".env")
 logger = logging.getLogger(__name__)
 _OPENAI_RESPONSES_URL = "https://api.openai.com/v1/responses"
 _CUSTOMER_ID = re.compile(r"\b(C_(?:\d+)|CUST-\d+)\b", re.IGNORECASE)
+_GREETING = re.compile(r"^\s*(سلام|سلام علیکم|درود|وقت بخیر|خوبی|خوبی\?|hello|hi)\s*[!؟?.]*\s*$", re.IGNORECASE)
 
 _REASON_TRANSLATIONS = {
     "high existing risk combined with customer value requires a retention decision.": "این مشتری به دلیل ریسک ریزش و ارزش فروش فعلی، نیازمند اقدام برای حفظ مشتری است.",
@@ -152,7 +153,16 @@ class SalesAssistantService:
         self.tools = CrmChatTools()
 
     def answer(self, message: str) -> tuple[str, list[str]]:
-        context, sources = self._select_context(message)
+        intent = self._classify_intent(message)
+        if intent == "greeting":
+            return (
+                "سلام، من دستیار فروش هوشمند هستم. می‌توانم درباره مشتریان، ریسک ریزش، فرصت‌های رشد و اولویت‌های فروش به شما کمک کنم.",
+                [],
+            )
+        if intent == "unknown":
+            return "لطفاً سؤال خود را درباره مشتریان، فروش یا وضعیت داشبورد مشخص‌تر کنید.", []
+
+        context, sources = self._select_context(message, intent)
         try:
             answer = self._ask_openai(message, context)
             if not self._has_managerial_structure(answer, context):
@@ -170,18 +180,38 @@ class SalesAssistantService:
             return all(label in answer for label in required)
         return True
 
-    def _select_context(self, message: str) -> tuple[dict[str, Any], list[str]]:
+    @staticmethod
+    def _classify_intent(message: str) -> str:
+        """Classify before any data-tool call, so greetings stay lightweight."""
+        normalized = message.strip().casefold()
+        if _GREETING.fullmatch(normalized):
+            return "greeting"
+        if _CUSTOMER_ID.search(message):
+            return "customer_specific_query"
+        if any(word in normalized for word in (
+            "وضعیت فروش", "وضعیت داشبورد", "چند مشتری", "خلاصه فروش", "عملکرد فروش", "فروش چگونه",
+        )):
+            return "dashboard_query"
+        if any(word in normalized for word in (
+            "پیگیری", "مهم امروز", "اولویت", "در خطر", "ریزش", "ریسک", "حفظ", "فرصت رشد", "فرصت‌های رشد",
+        )):
+            return "priority_customer_query"
+        return "unknown"
+
+    def _select_context(self, message: str, intent: str) -> tuple[dict[str, Any], list[str]]:
         customer_match = _CUSTOMER_ID.search(message)
-        if customer_match:
+        if intent == "customer_specific_query" and customer_match:
             customer_id = customer_match.group(1).upper()
             details = self.tools.get_customer_details(customer_id)
             return {"customer_details": details}, ["داده‌های مشتری", "تاریخچه مشتری"]
 
         normalized = message.casefold()
-        if any(word in normalized for word in ("ریزش", "ریسک", "حفظ")):
+        if intent == "priority_customer_query" and any(word in normalized for word in ("ریزش", "ریسک", "حفظ", "در خطر")):
             return {"top_risk_customers": self.tools.get_top_risk_customers()}, ["داده‌های مشتری", "اولویت‌های فروش"]
-        if any(word in normalized for word in ("رشد", "فرصت")):
+        if intent == "priority_customer_query" and any(word in normalized for word in ("رشد", "فرصت")):
             return {"growth_opportunities": self.tools.get_growth_opportunities()}, ["داده‌های مشتری", "اولویت‌های فروش"]
+        if intent == "priority_customer_query":
+            return {"priority_customers": self.tools.get_priority_customers()}, ["اولویت‌های فروش"]
         return {
             "dashboard_summary": self.tools.get_dashboard_summary(),
             "priority_customers": self.tools.get_priority_customers(),
@@ -195,6 +225,7 @@ class SalesAssistantService:
         instructions = """شما دستیار فروش هوشمند برای مدیر فروش هستید.
 همیشه فقط به زبان فارسی و با لحن مدیریتی و عملیاتی پاسخ دهید.
 پاسخ را فقط بر اساس نتایج ابزارهای CRM بنویسید و هرگز واقعیت، عدد، مشتری یا اقدامی اضافه نکنید.
+فقط برای پرسش‌های صریح کسب‌وکاری از نتایج CRM استفاده کنید؛ برای سلام و گفت‌وگوی عمومی، دادهٔ CRM ارائه نکنید.
 هیچ متن انگلیسی یا عبارت خام داده‌ها را نمایش ندهید؛ متن‌های ورودی را به فارسی روان تبدیل کنید.
 از اصطلاحات فنی و داخلی مانند rule_based، score و decision_category استفاده نکنید.
 برای فهرست مشتریان، هر مشتری را با «نوع اقدام»، «دلیل اهمیت» و «اقدام پیشنهادی» ارائه کنید.
