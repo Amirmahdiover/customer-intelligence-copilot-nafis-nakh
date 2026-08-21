@@ -11,18 +11,61 @@ type ChatMessage = {
   sources?: string[]
 }
 
+type QuickAction = { label: string; question: string }
+
 const START_MESSAGE: ChatMessage = {
   role: 'assistant',
   content: 'سلام، من دستیار فروش هوشمند هستم. می‌توانم درباره مشتریان، ریسک ریزش، فرصت‌های رشد و اولویت‌های فروش به شما کمک کنم.',
 }
 
-const QUICK_ACTIONS = [
+const INITIAL_QUICK_ACTIONS: QuickAction[] = [
   { label: 'مشتری‌های در معرض ریزش', question: 'کدام مشتری‌ها در معرض ریزش هستند؟' },
   { label: 'بهترین فرصت رشد', question: 'بهترین مشتری برای رشد کیست؟' },
   { label: 'اقدام امروز فروش', question: 'تیم فروش امروز چه کاری انجام دهد؟' },
   { label: 'تحلیل مشتری خاص', question: 'برای تحلیل مشتری، چه اطلاعاتی لازم است؟' },
   { label: 'وضعیت مشتری C_691869', question: 'وضعیت مشتری C_691869 چیست؟' },
 ] as const
+
+function conversationQuickActions(messages: ChatMessage[]): QuickAction[] {
+  if (messages.length <= 1) return INITIAL_QUICK_ACTIONS
+
+  const recentConversation = messages.slice(-4).map((message) => message.content).join(' ')
+  const customerIds = [...recentConversation.matchAll(/\b(C_(?:\d+)|CUST-\d+)\b/gi)]
+  const customerId = customerIds.at(-1)?.[1]?.toUpperCase()
+  if (customerId) {
+    return [
+      { label: 'چرایی مشتری', question: `چرا مشتری ${customerId} مهم است؟` },
+      { label: 'اقدام بعدی', question: `اقدام بعدی برای مشتری ${customerId} چیست؟` },
+      { label: 'تعاملات اخیر', question: `تعاملات و شکایت‌های اخیر مشتری ${customerId} چیست؟` },
+      { label: 'مقایسه رشد', question: `آیا مشتری ${customerId} فرصت رشد دارد؟` },
+    ]
+  }
+
+  if (/(ریزش|ریسک|خطر|churn|risk)/i.test(recentConversation)) {
+    return [
+      { label: 'اقدام حفظ', question: 'برای مشتریان پرریسک چه اقدامی پیشنهاد می‌شود؟' },
+      { label: 'درآمد در خطر', question: 'چه میزان درآمد در معرض ریسک است؟' },
+      { label: 'اولویت تماس', question: 'کدام مشتری پرریسک را اول تماس بگیریم؟' },
+      { label: 'فرصت رشد', question: 'بهترین فرصت رشد کدام مشتری است؟' },
+    ]
+  }
+
+  if (/(رشد|فرصت|growth|opportunity)/i.test(recentConversation)) {
+    return [
+      { label: 'چرایی رشد', question: 'چرا این مشتریان فرصت رشد دارند؟' },
+      { label: 'اقدام توسعه', question: 'برای فرصت‌های رشد چه اقدامی انجام دهیم؟' },
+      { label: 'اولویت امروز', question: 'امروز کدام فرصت رشد را پیگیری کنیم؟' },
+      { label: 'مشتریان پرریسک', question: 'کدام مشتری‌ها در معرض ریزش هستند؟' },
+    ]
+  }
+
+  return [
+    { label: 'اولویت امروز', question: 'تیم فروش امروز چه کاری انجام دهد؟' },
+    { label: 'مشتریان مهم', question: 'مهم‌ترین مشتریان برای پیگیری کدام‌اند؟' },
+    { label: 'فرصت رشد', question: 'بهترین مشتری برای رشد کیست؟' },
+    { label: 'ریسک ریزش', question: 'کدام مشتری‌ها در معرض ریزش هستند؟' },
+  ]
+}
 
 const SECTION_HEADINGS = new Set(['وضعیت فعلی', 'چرا مهم است', 'شواهد', 'شواهد از CRM', 'اقدام پیشنهادی'])
 
@@ -31,6 +74,7 @@ export function SalesAssistantChat() {
   const [input, setInput] = useState('')
   const [messages, setMessages] = useState<ChatMessage[]>([START_MESSAGE])
   const [sessionId, setSessionId] = useState(() => crypto.randomUUID())
+  const [aiQuickActions, setAiQuickActions] = useState<QuickAction[] | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const endRef = useRef<HTMLDivElement>(null)
 
@@ -38,10 +82,26 @@ export function SalesAssistantChat() {
     endRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, isLoading])
 
+  const quickActions = aiQuickActions ?? INITIAL_QUICK_ACTIONS
+
+  async function loadAiQuickActions(activeSessionId: string) {
+    try {
+      const response = await fetch(apiUrl(`/chat/suggestions/${encodeURIComponent(activeSessionId)}`))
+      if (!response.ok) return
+      const payload = await response.json() as { suggestions?: QuickAction[] }
+      if (payload.suggestions?.length) {
+        setAiQuickActions(payload.suggestions)
+      }
+    } catch {
+      // Keep the initial suggestions if the optional AI follow-up call fails.
+    }
+  }
+
   async function sendMessage(message: string) {
     if (!message || isLoading) return
 
     const assistantMessageIndex = messages.length + 1
+    setAiQuickActions(null)
     setMessages((current) => [...current, { role: 'user', content: message }, { role: 'assistant', content: '' }])
     setInput('')
     setIsLoading(true)
@@ -58,6 +118,7 @@ export function SalesAssistantChat() {
       let buffer = ''
       let streamedAnswer = ''
       let sources: string[] | undefined
+      let resolvedSessionId = sessionId
       let lastUiUpdate = 0
       const updateAssistant = () => setMessages((current) => current.map((item, index) => (
         index === assistantMessageIndex ? { ...item, content: streamedAnswer, sources } : item
@@ -76,7 +137,10 @@ export function SalesAssistantChat() {
           if (!data) continue
           const payload = JSON.parse(data) as { type: string; delta?: string; sources?: string[]; session_id?: string }
           if (payload.type === 'meta') {
-            if (payload.session_id) setSessionId(payload.session_id)
+            if (payload.session_id) {
+              resolvedSessionId = payload.session_id
+              setSessionId(payload.session_id)
+            }
             sources = payload.sources
           }
           if (payload.type === 'delta' && payload.delta) {
@@ -93,6 +157,7 @@ export function SalesAssistantChat() {
         }
       }
       updateAssistant()
+      await loadAiQuickActions(resolvedSessionId)
     } catch {
       setMessages((current) => current.map((item, index) => index === assistantMessageIndex ? {
         ...item,
@@ -121,7 +186,7 @@ export function SalesAssistantChat() {
             <div className="flex items-center gap-2 text-card-foreground">
               <span className="flex size-8 items-center justify-center rounded-full bg-primary text-primary-foreground"><Sparkles size={16} /></span>
               <div>
-                <h2 className="text-sm font-bold">دستیار فروش AI</h2>
+                <h2 className="text-sm font-bold">نفیس | دستیار فروش</h2>
                 <p className="text-xs text-muted-foreground">پاسخ بر پایه داده‌های CRM</p>
               </div>
             </div>
@@ -129,7 +194,7 @@ export function SalesAssistantChat() {
           </header>
 
           <div className="flex flex-wrap gap-1.5 border-b bg-muted/20 px-3 py-2" aria-label="سؤال‌های پیشنهادی">
-            {QUICK_ACTIONS.map((action) => (
+            {quickActions.map((action) => (
               <Button
                 key={action.label}
                 type="button"
@@ -179,8 +244,15 @@ export function SalesAssistantChat() {
           </form>
         </section>
       )}
-      <Button type="button" size="icon-lg" onClick={() => setOpen((value) => !value)} aria-label={open ? 'بستن دستیار فروش' : 'باز کردن دستیار فروش'} className="size-12 rounded-full shadow-lg">
-        {open ? <X size={20} /> : <Bot size={22} />}
+      <Button
+        type="button"
+        size="icon-lg"
+        onClick={() => setOpen((value) => !value)}
+        aria-label={open ? 'بستن نفیس، دستیار فروش' : 'باز کردن نفیس، دستیار فروش'}
+        title={open ? 'بستن نفیس' : 'نفیس، دستیار فروش هوشمند'}
+        className="sales-copilot-trigger size-[3.75rem] rounded-full border-2 border-white/20 bg-primary text-primary-foreground shadow-xl shadow-black/25 transition-transform hover:scale-105 hover:bg-primary/90"
+      >
+        {open ? <X size={24} /> : <Bot size={29} strokeWidth={2.25} />}
       </Button>
     </div>
   )

@@ -336,6 +336,66 @@ class SalesAssistantService:
         )
         return answer, sources, session_id
 
+    def suggested_questions(self, session_id: str) -> list[dict[str, str]]:
+        """Ask OpenAI for follow-up questions grounded in this session only."""
+        _, memory = conversation_memory_store.get(session_id)
+        if not memory.messages:
+            return []
+        api_key = os.getenv("OPENAI_API_KEY")
+        if not api_key:
+            return []
+        prompt = {
+            "conversation_context": conversation_memory_store.context(memory),
+        }
+        instructions = (
+            "You generate four useful next questions for a Persian CRM sales manager. "
+            "Base them only on the supplied conversation. Do not invent customer facts. "
+            "Return valid JSON only: {\"suggestions\":[{\"label\":\"...\",\"question\":\"...\"}]}. "
+            "Create exactly four items. Each label must be a concise Persian chip of one to three words; "
+            "each question must be a useful full Persian question."
+        )
+        body = json.dumps({
+            "model": os.getenv("OPENAI_MODEL_FAST", "gpt-4.1-mini"),
+            "instructions": instructions,
+            "input": json.dumps(prompt, ensure_ascii=False),
+            "store": False,
+            "max_output_tokens": 180,
+        }, ensure_ascii=False).encode("utf-8")
+        request = Request(_OPENAI_RESPONSES_URL, data=body, headers={
+            "Authorization": f"Bearer {api_key}", "Content-Type": "application/json",
+        }, method="POST")
+        try:
+            with urlopen(request, timeout=float(os.getenv("OPENAI_TIMEOUT_SECONDS", "40"))) as response:
+                payload = json.loads(response.read().decode("utf-8"))
+            text = payload.get("output_text")
+            if not isinstance(text, str):
+                for output in payload.get("output", []):
+                    for content in output.get("content", []):
+                        if content.get("type") in {"output_text", "text"} and isinstance(content.get("text"), str):
+                            text = content["text"]
+                            break
+                    if isinstance(text, str):
+                        break
+            if not isinstance(text, str):
+                raise ValueError("Missing output_text")
+            clean_text = re.sub(r"^```(?:json)?\s*|\s*```$", "", text.strip(), flags=re.IGNORECASE)
+            decoded = json.loads(clean_text)
+            suggestions = decoded.get("suggestions") if isinstance(decoded, dict) else None
+            if not isinstance(suggestions, list):
+                raise ValueError("Invalid suggestions")
+            result: list[dict[str, str]] = []
+            for item in suggestions:
+                if not isinstance(item, dict):
+                    continue
+                label = item.get("label")
+                question = item.get("question")
+                if isinstance(label, str) and label.strip() and isinstance(question, str) and question.strip():
+                    result.append({"label": label.strip(), "question": question.strip()})
+            return result[:4]
+        except (HTTPError, URLError, TimeoutError, ValueError, json.JSONDecodeError) as error:
+            logger.warning("Sales copilot AI suggestions unavailable: %s", error)
+            return []
+
     def stream_answer(self, message: str, session_id: str | None = None) -> Iterator[dict[str, Any]]:
         """Yield OpenAI text deltas while retaining the same isolated memory flow.
 
