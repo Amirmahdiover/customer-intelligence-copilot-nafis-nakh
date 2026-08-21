@@ -10,6 +10,8 @@ export interface DashboardMetric {
     | 'revenue_at_risk'
     | 'growth_opportunities'
     | 'priority_actions'
+    | 'trailing_12m_revenue'
+    | 'total_liquidity'
   label: string
   value: number
 }

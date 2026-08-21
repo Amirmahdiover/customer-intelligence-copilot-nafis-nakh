@@ -10,9 +10,11 @@ import {
   mapNegotiationScore,
   mapComplaintDetail,
   mapCrmInteraction,
+  mapCompanyLiquidity,
   mapCrmLatest,
   mapCustomerFinancial,
   mapCustomerInfoToCustomer,
+  mapCustomerLiquidity,
   mapNotDueInvoices,
   mapReturnedChecks,
   applyCustomerValue,
@@ -21,6 +23,7 @@ import type {
   ApiActionResponse,
   ApiBestOfferResponse,
   ApiChurnResponse,
+  ApiCompanyLiquidityResponse,
   ApiComplaintsListResponse,
   ApiComplaintsCountResponse,
   ApiCrmInteractionsListResponse,
@@ -30,6 +33,7 @@ import type {
   ApiCustomerFinancialResponse,
   ApiCustomerHeaderListResponse,
   ApiCustomerHeaderResponse,
+  ApiCustomerLiquidityResponse,
   ApiKpiResponse,
   ApiNegotiationScoreResponse,
   ApiNotDueInvoicesResponse,
@@ -40,6 +44,7 @@ import type {
 } from '@/types/api'
 import type {
   BestOffer,
+  CompanyLiquidity,
   CustomerChurn,
   Complaint,
   CrmInteraction,
@@ -48,6 +53,7 @@ import type {
   Customer,
   CustomerFilters,
   CustomerFinancial,
+  CustomerLiquidity,
   Insight,
   NegotiationScore,
   NotDueInvoice,
@@ -540,6 +546,34 @@ export async function getCustomerBestOffer(
   )
 
   return mapBestOffer(response)
+}
+
+/**
+ * ============================================================
+ * LIQUIDITY
+ * ============================================================
+ *
+ * نقدینگی = فروش نقدی + وصولی موفق (چک برگشت‌نخورده). days را بده برای
+ * بازه اخیر (مثلاً ۹۰ یا ۳۶۵ روز)؛ نده برای کل تاریخچه.
+ */
+export async function getCompanyLiquidity(days?: number): Promise<CompanyLiquidity> {
+  const response = await apiFetch<ApiCompanyLiquidityResponse>('/liquidity/company', {
+    days,
+  })
+
+  return mapCompanyLiquidity(response)
+}
+
+export async function getCustomerLiquidity(
+  id: string,
+  days?: number,
+): Promise<CustomerLiquidity> {
+  const response = await apiFetch<ApiCustomerLiquidityResponse>(
+    `/customers/${encodeURIComponent(id)}/liquidity`,
+    { days },
+  )
+
+  return mapCustomerLiquidity(response)
 }
 
 /**

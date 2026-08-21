@@ -3,9 +3,11 @@ import {
   getCrmOverview,
   getCustomerActions,
   getCustomerAIAction,
+  getCompanyLiquidity,
   getCustomerBestOffer,
   getCustomerById,
   getCustomerChurn,
+  getCustomerLiquidity,
   getCustomerNegotiationScore,
   getCustomerComplaints,
   getCustomerComplaintsCount,
@@ -156,6 +158,22 @@ export function useCustomerBestOffer(id: string) {
   return useQuery({
     queryKey: ['crm', 'offers', 'best', id],
     queryFn: () => getCustomerBestOffer(id),
+    enabled: !!id,
+  })
+}
+
+export function useCompanyLiquidity(days?: number) {
+  return useQuery({
+    queryKey: ['crm', 'liquidity', 'company', days],
+    queryFn: () => getCompanyLiquidity(days),
+    staleTime: 30 * 60 * 1000,
+  })
+}
+
+export function useCustomerLiquidity(id: string, days?: number) {
+  return useQuery({
+    queryKey: ['crm', 'liquidity', id, days],
+    queryFn: () => getCustomerLiquidity(id, days),
     enabled: !!id,
   })
 }

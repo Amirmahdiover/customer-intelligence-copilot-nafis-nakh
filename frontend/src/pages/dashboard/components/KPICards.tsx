@@ -1,4 +1,4 @@
-import { AlertTriangle, Banknote, TrendingUp } from 'lucide-react'
+import { AlertTriangle, Banknote, TrendingUp, Wallet } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { formatCurrency, formatNumber } from '@/lib/formatters'
 import type { DashboardMetric } from '../types/dashboard.types'
@@ -11,12 +11,16 @@ const SALES_MANAGER_METRICS: DashboardMetric['key'][] = [
   'customers_at_risk',
   'revenue_at_risk',
   'growth_opportunities',
+  'total_liquidity',
 ]
+
+const BUSINESS_VALUE_METRICS: DashboardMetric['key'][] = ['revenue_at_risk', 'total_liquidity']
 
 const CARD_META = {
   customers_at_risk: { icon: AlertTriangle, tone: 'bg-rose-50 text-rose-700', label: 'مشتریان در آستانه ریزش', meaning: 'نیازمند پیگیری حفظ مشتری' },
   revenue_at_risk: { icon: Banknote, tone: 'bg-amber-50 text-amber-700', label: 'درآمد در خطر', meaning: 'فروش سالانه مشتریان پرریسک' },
   growth_opportunities: { icon: TrendingUp, tone: 'bg-emerald-50 text-emerald-700', label: 'فرصت رشد', meaning: 'حساب‌های آماده توسعه فروش' },
+  total_liquidity: { icon: Wallet, tone: 'bg-sky-50 text-sky-700', label: 'نقدینگی شرکت', meaning: 'فروش نقدی + وصولی موفق، کل تاریخچه' },
 } satisfies Partial<Record<DashboardMetric['key'], { icon: typeof AlertTriangle; tone: string; label: string; meaning: string }>>
 
 export function KPICards({ metrics }: KPICardsProps) {
@@ -26,12 +30,14 @@ export function KPICards({ metrics }: KPICardsProps) {
   })
 
   return (
-    <section className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-3" aria-label="شاخص‌های فروش">
+    <section className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4" aria-label="شاخص‌های فروش">
       {selectedMetrics.map((metric) => {
         const meta = CARD_META[metric.key]
         if (!meta) return null
         const Icon = meta.icon
-        const value = metric.key === 'revenue_at_risk' ? formatBusinessValue(metric.value) : formatNumber(metric.value)
+        const value = BUSINESS_VALUE_METRICS.includes(metric.key)
+          ? formatBusinessValue(metric.value)
+          : formatNumber(metric.value)
         return (
           <Card key={metric.key} className="border-muted/80 py-2.5 shadow-sm">
             <CardContent className="flex items-center gap-3">

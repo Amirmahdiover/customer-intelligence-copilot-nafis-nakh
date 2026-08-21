@@ -685,3 +685,51 @@ class CustomerValueListResponse(BaseModel):
 
 class CustomerValueResponse(CustomerValueItem):
     pass
+
+
+# ---------------------------------------------------------------------------
+# /liquidity — cash actually in hand: cash sales + successful collections
+# ---------------------------------------------------------------------------
+
+class CompanyLiquidityResponse(BaseModel):
+    total_liquidity: float = Field(
+        ..., description="cash_sales_total + collected_total across all customers."
+    )
+    cash_sales_total: float = Field(
+        ..., description="Sum of مبلغ کل where نوع پرداخت == cash_or_prepaid."
+    )
+    collected_total: float = Field(
+        ..., description="Sum of مبلغ وصول where چک برگشتی == خیر (non-bounced)."
+    )
+    period: str = Field(..., description="«کل تاریخچه» for full history, or «N روز اخیر».")
+
+    model_config = ConfigDict(json_schema_extra={"example": {
+        "total_liquidity": 6273377919.28,
+        "cash_sales_total": 2416998885.04,
+        "collected_total": 3856379034.24,
+        "period": "کل تاریخچه",
+    }})
+
+
+class CustomerLiquidityResponse(BaseModel):
+    customer_id: str
+    liquidity_contribution: float = Field(
+        ..., description="cash_sales + collected_amount for this customer/window."
+    )
+    cash_sales: float
+    collected_amount: float
+    liquidity_ratio: Optional[float] = Field(
+        None,
+        description="liquidity_contribution ÷ total sales (all payment types) in the window. "
+        "Low ⇒ mostly credit/overdue rather than realized cash. Null when the customer has no sales in the window.",
+    )
+    period: str
+
+    model_config = ConfigDict(json_schema_extra={"example": {
+        "customer_id": "C_009817",
+        "liquidity_contribution": 45230000.0,
+        "cash_sales": 28100000.0,
+        "collected_amount": 17130000.0,
+        "liquidity_ratio": 0.62,
+        "period": "365 روز اخیر",
+    }})

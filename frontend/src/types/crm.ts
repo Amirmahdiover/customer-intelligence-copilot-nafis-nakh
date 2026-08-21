@@ -217,6 +217,22 @@ export interface BestOffer {
   alternatives: BestOfferItem[]
 }
 
+export interface CompanyLiquidity {
+  totalLiquidity: number
+  cashSalesTotal: number
+  collectedTotal: number
+  period: string
+}
+
+export interface CustomerLiquidity {
+  customerId: string
+  liquidityContribution: number
+  cashSales: number
+  collectedAmount: number
+  liquidityRatio: number | null
+  period: string
+}
+
 export type ChurnRiskLevelFa = 'پایین' | 'متوسط' | 'بالا'
 
 export interface CustomerChurn {

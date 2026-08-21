@@ -361,6 +361,22 @@ export interface ApiCustomerValueListResponse {
   customers: ApiCustomerValueItem[]
 }
 
+export interface ApiCompanyLiquidityResponse {
+  total_liquidity: number
+  cash_sales_total: number
+  collected_total: number
+  period: string
+}
+
+export interface ApiCustomerLiquidityResponse {
+  customer_id: string
+  liquidity_contribution: number
+  cash_sales: number
+  collected_amount: number
+  liquidity_ratio: number | null
+  period: string
+}
+
 export interface ApiListParams {
   skip?: number
   limit?: number

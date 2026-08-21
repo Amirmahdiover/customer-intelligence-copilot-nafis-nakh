@@ -18,6 +18,7 @@ from .dashboard.routes import router as dashboard_router
 from .chat_routes import router as chat_router
 from .data_loader import SNAPSHOT_DATE, store
 from .financial_store import financial_store, get_financial_store
+from .liquidity_store import liquidity_store, get_liquidity_store
 from .value_store import customer_value_store, get_customer_value_store
 from .churn_model import ChurnFeaturesNotFound, ChurnModelUnavailable, predict_churn
 from .negotiation_model import (
@@ -53,6 +54,8 @@ from .schemas import (
     CustomerValueItem,
     CustomerValueListResponse,
     CustomerValueResponse,
+    CompanyLiquidityResponse,
+    CustomerLiquidityResponse,
 )
 
 OPENAPI_TAGS = [
@@ -67,6 +70,7 @@ OPENAPI_TAGS = [
     {"name": "Churn", "description": "ML churn probability (90-day window) from precomputed behavioral features."},
     {"name": "Negotiation", "description": "Negotiation success score from retention/loyalty models plus collection and cash scorecards."},
     {"name": "Value", "description": "0-100 customer value score and four-tier label (شریک طلایی / پایدار / پرچالش / قرمز)."},
+    {"name": "Liquidity", "description": "Cash actually in hand: cash/prepaid sales + successful (non-bounced) collections, company-wide and per customer."},
 ]
 
 app = FastAPI(
@@ -103,12 +107,14 @@ def preload_data_stores() -> None:
     crm = get_crm_store()
     financial = get_financial_store()
     values = get_customer_value_store()
+    liquidity = get_liquidity_store()
     print(
         f"Loaded {len(headers.list_customer_headers())} customers, "
         f"{sum(complaints.count_for_customer(cid) for cid in complaints.customers_with_complaints())} complaints, "
         f"{crm.total_interactions()} CRM interactions, "
         f"{financial.total_customers()} financial status records, "
-        f"{values.total_customers()} value scores."
+        f"{values.total_customers()} value scores, "
+        f"{liquidity.total_customers()} customers with sales/collections."
     )
 
 NOT_FOUND_RESPONSES = {404: {"model": ErrorResponse, "description": "Customer not found"}}
@@ -455,6 +461,55 @@ def get_customer_value(customer_id: str = CUSTOMER_ID_PATH):
             detail=f"No value score for customer '{customer_id}'.",
         )
     return CustomerValueResponse(**record)
+
+
+@app.get(
+    "/liquidity/company",
+    response_model=CompanyLiquidityResponse,
+    tags=["Liquidity"],
+    summary="Company-wide liquidity",
+    description=(
+        "Σ(cash/prepaid sales) + Σ(successful collections, non-bounced checks) across every "
+        "customer. Pass `days` for a trailing window (e.g. 90, 365); omit for full history."
+    ),
+)
+def get_company_liquidity(
+    days: int | None = Query(None, ge=1, description="Trailing window in days; omit for full history."),
+):
+    result = liquidity_store.compute(customer_id=None, days=days)
+    return CompanyLiquidityResponse(
+        total_liquidity=result["total_liquidity"],
+        cash_sales_total=result["cash_sales"],
+        collected_total=result["collected_amount"],
+        period=result["period"],
+    )
+
+
+@app.get(
+    "/customers/{customer_id}/liquidity",
+    response_model=CustomerLiquidityResponse,
+    responses=NOT_FOUND_RESPONSES,
+    tags=["Liquidity"],
+    summary="Per-customer liquidity contribution",
+    description=(
+        "Same formula scoped to one customer, plus `liquidity_ratio` = liquidity ÷ total sales "
+        "in the window (low ratio ⇒ mostly credit/overdue, not realized cash)."
+    ),
+)
+def get_customer_liquidity(
+    customer_id: str = CUSTOMER_ID_PATH,
+    days: int | None = Query(None, ge=1, description="Trailing window in days; omit for full history."),
+):
+    _ensure_customer_exists(customer_id)
+    result = liquidity_store.compute(customer_id=customer_id, days=days)
+    return CustomerLiquidityResponse(
+        customer_id=customer_id,
+        liquidity_contribution=result["total_liquidity"],
+        cash_sales=result["cash_sales"],
+        collected_amount=result["collected_amount"],
+        liquidity_ratio=result["liquidity_ratio"],
+        period=result["period"],
+    )
 
 
 @app.get(

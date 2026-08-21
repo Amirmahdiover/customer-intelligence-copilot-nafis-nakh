@@ -6,6 +6,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import {
   useCustomer,
   useCustomerFinancial,
+  useCustomerLiquidity,
   usePortfolioTrailing12mRevenue,
 } from '@/hooks/crm/useCrmQueries'
 import {
@@ -34,6 +35,7 @@ export function EconomicValueCard({ customerId }: EconomicValueCardProps) {
     refetch,
   } = useCustomer(customerId)
   const { data: financial } = useCustomerFinancial(customerId)
+  const { data: liquidity } = useCustomerLiquidity(customerId)
   const { data: portfolioTotal, isLoading: portfolioLoading } =
     usePortfolioTrailing12mRevenue()
 
@@ -56,6 +58,16 @@ export function EconomicValueCard({ customerId }: EconomicValueCardProps) {
     model.walletSharePct != null
       ? Math.round(model.walletSharePct * 100)
       : null
+  const liquidityRatioPct =
+    liquidity?.liquidityRatio != null ? Math.round(liquidity.liquidityRatio * 100) : null
+  const liquidityTone =
+    liquidityRatioPct == null
+      ? 'text-muted-foreground'
+      : liquidityRatioPct > 60
+        ? 'text-emerald-600'
+        : liquidityRatioPct >= 30
+          ? 'text-amber-600'
+          : 'text-destructive'
 
   return (
     <Card className="h-full gap-0 border-border/50 bg-white py-0 shadow-none ring-1 ring-border/25">
@@ -102,6 +114,18 @@ export function EconomicValueCard({ customerId }: EconomicValueCardProps) {
               {model.payment.caption}
             </p>
           </div>
+        </div>
+
+        <div className="rounded-lg border border-border/50 bg-muted/30 px-4 py-3">
+          <p className="text-xs text-muted-foreground">نقدینگی مشتری</p>
+          <p className="mt-1 text-2xl font-bold tabular-nums text-card-foreground">
+            {liquidity ? formatTomanCompact(liquidity.liquidityContribution) : '—'}
+          </p>
+          <p className={cn('mt-1 text-xs font-medium', liquidityTone)}>
+            {liquidityRatioPct != null
+              ? `نسبت نقدینگی: ${liquidityRatioPct.toLocaleString('fa-IR')}٪ از فروش (${liquidity?.period})`
+              : 'داده‌ای برای محاسبه نسبت نقدینگی ثبت نشده است'}
+          </p>
         </div>
 
         <p className="text-sm text-muted-foreground">

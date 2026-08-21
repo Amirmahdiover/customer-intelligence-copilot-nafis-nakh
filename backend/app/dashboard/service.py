@@ -8,6 +8,7 @@ from ..complaint_store import complaint_store
 from ..crm_store import crm_store
 from ..customer_ai_action import build_rule_based_decision, extract_customer_factors
 from ..financial_store import financial_store
+from ..liquidity_store import liquidity_store
 from .ai_service import dashboard_ai_service
 from .logic.actions import build_recommended_actions
 from .logic.decisions import classify_dashboard_decision
@@ -201,6 +202,7 @@ class DashboardService:
         trailing_12m_revenue = sum(
             _number(record.get("Annual_Sales_Trailing12M")) for record in self._records()
         )
+        total_liquidity = liquidity_store.compute(customer_id=None, days=None)["total_liquidity"]
 
         return DashboardOverviewResponse(
             snapshot_date=SNAPSHOT_DATE,
@@ -214,6 +216,11 @@ class DashboardService:
                     key="trailing_12m_revenue",
                     label="Trailing 12M Revenue",
                     value=round(trailing_12m_revenue, 2),
+                ),
+                DashboardMetric(
+                    key="total_liquidity",
+                    label="Company Liquidity",
+                    value=total_liquidity,
                 ),
             ],
             risk_distribution=risk_distribution,

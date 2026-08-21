@@ -4,11 +4,13 @@ import type {
   ApiActionResponse,
   ApiBestOfferResponse,
   ApiChurnResponse,
+  ApiCompanyLiquidityResponse,
   ApiComplaintDetail,
   ApiComplaintRecord,
   ApiCrmInteractionItem,
   ApiCrmLatestResponse,
   ApiCustomerFinancialResponse,
+  ApiCustomerLiquidityResponse,
   ApiCustomerProfile,
   ApiCustomerSummary,
   ApiKpiResponse,
@@ -29,6 +31,7 @@ import type {
   AccountStatus,
   BestOffer,
   BestOfferItem,
+  CompanyLiquidity,
   CustomerChurn,
   Complaint,
   ComplaintPriority,
@@ -37,6 +40,7 @@ import type {
   CrmLatest,
   Customer,
   CustomerFinancial,
+  CustomerLiquidity,
   CustomerRisk,
   CustomerStatus,
   Insight,
@@ -652,6 +656,26 @@ export function mapBestOffer(response: ApiBestOfferResponse): BestOffer {
     method: response.method,
     best: mapOfferItem(response.best_offer),
     alternatives: (response.alternatives ?? []).map(mapOfferItem),
+  }
+}
+
+export function mapCompanyLiquidity(response: ApiCompanyLiquidityResponse): CompanyLiquidity {
+  return {
+    totalLiquidity: response.total_liquidity,
+    cashSalesTotal: response.cash_sales_total,
+    collectedTotal: response.collected_total,
+    period: response.period,
+  }
+}
+
+export function mapCustomerLiquidity(response: ApiCustomerLiquidityResponse): CustomerLiquidity {
+  return {
+    customerId: response.customer_id,
+    liquidityContribution: response.liquidity_contribution,
+    cashSales: response.cash_sales,
+    collectedAmount: response.collected_amount,
+    liquidityRatio: response.liquidity_ratio,
+    period: response.period,
   }
 }
 
