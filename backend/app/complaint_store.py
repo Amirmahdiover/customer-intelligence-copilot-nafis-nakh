@@ -87,6 +87,13 @@ class ComplaintStore:
     def customers_with_complaints(self) -> set[str]:
         return set(self._customer_ids_with_complaints)
 
+    def list_all(self) -> list[dict[str, str | None]]:
+        return [
+            {"customer_id": customer_id, **record}
+            for customer_id, records in self._by_customer.items()
+            for record in records
+        ]
+
 
 @lru_cache(maxsize=1)
 def get_complaint_store() -> ComplaintStore:
@@ -102,6 +109,9 @@ class _ComplaintStoreProxy:
 
     def customers_with_complaints(self) -> set[str]:
         return get_complaint_store().customers_with_complaints()
+
+    def list_all(self) -> list[dict[str, str | None]]:
+        return get_complaint_store().list_all()
 
 
 complaint_store = _ComplaintStoreProxy()

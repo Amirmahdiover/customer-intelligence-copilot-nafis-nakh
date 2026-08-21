@@ -32,6 +32,7 @@ from .schemas import (
     BestOfferResponse,
     ChurnResponse,
     ComplaintsCountResponse,
+    ComplaintsListResponse,
     CrmInteractionsListResponse,
     CrmLatestResponse,
     CustomerComplaintsListResponse,
@@ -169,6 +170,18 @@ def get_customer(customer_id: str = CUSTOMER_ID_PATH):
 )
 def get_customer_kpis(customer_id: str = CUSTOMER_ID_PATH):
     return _get_customer_or_404(customer_id)
+
+
+@app.get(
+    "/complaints",
+    response_model=ComplaintsListResponse,
+    tags=["Complaints"],
+    summary="List all customer complaints",
+    description="Returns the normalized complaint records for the complaints workspace.",
+)
+def get_all_complaints():
+    complaints = complaint_store.list_all()
+    return ComplaintsListResponse(total=len(complaints), complaints=complaints)
 
 
 @app.get(
