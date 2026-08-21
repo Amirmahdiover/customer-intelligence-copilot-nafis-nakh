@@ -174,10 +174,11 @@ class SalesAssistantService:
     @staticmethod
     def _has_managerial_structure(answer: str, context: dict[str, Any]) -> bool:
         required = ("نوع اقدام", "دلیل اهمیت", "اقدام پیشنهادی")
-        if "customer_details" in context or any(
-            key in context for key in ("top_risk_customers", "growth_opportunities", "priority_customers")
-        ):
-            return all(label in answer for label in required)
+        if "customer_details" in context:
+            customer = context["customer_details"] or {}
+            return all(label in answer for label in required) and str(customer.get("customer_id") or "") in answer
+        if any(key in context for key in ("top_risk_customers", "growth_opportunities", "priority_customers")):
+            return all(label in answer for label in required) and bool(_CUSTOMER_ID.search(answer))
         return True
 
     @staticmethod
