@@ -11,18 +11,61 @@ type ChatMessage = {
   sources?: string[]
 }
 
+type QuickAction = { label: string; question: string }
+
 const START_MESSAGE: ChatMessage = {
   role: 'assistant',
   content: 'سلام، من دستیار فروش هوشمند هستم. می‌توانم درباره مشتریان، ریسک ریزش، فرصت‌های رشد و اولویت‌های فروش به شما کمک کنم.',
 }
 
-const QUICK_ACTIONS = [
+const INITIAL_QUICK_ACTIONS: QuickAction[] = [
   { label: 'مشتری‌های در معرض ریزش', question: 'کدام مشتری‌ها در معرض ریزش هستند؟' },
   { label: 'بهترین فرصت رشد', question: 'بهترین مشتری برای رشد کیست؟' },
   { label: 'اقدام امروز فروش', question: 'تیم فروش امروز چه کاری انجام دهد؟' },
   { label: 'تحلیل مشتری خاص', question: 'برای تحلیل مشتری، چه اطلاعاتی لازم است؟' },
   { label: 'وضعیت مشتری C_691869', question: 'وضعیت مشتری C_691869 چیست؟' },
 ] as const
+
+function conversationQuickActions(messages: ChatMessage[]): QuickAction[] {
+  if (messages.length <= 1) return INITIAL_QUICK_ACTIONS
+
+  const recentConversation = messages.slice(-4).map((message) => message.content).join(' ')
+  const customerIds = [...recentConversation.matchAll(/\b(C_(?:\d+)|CUST-\d+)\b/gi)]
+  const customerId = customerIds.at(-1)?.[1]?.toUpperCase()
+  if (customerId) {
+    return [
+      { label: 'چرایی مشتری', question: `چرا مشتری ${customerId} مهم است؟` },
+      { label: 'اقدام بعدی', question: `اقدام بعدی برای مشتری ${customerId} چیست؟` },
+      { label: 'تعاملات اخیر', question: `تعاملات و شکایت‌های اخیر مشتری ${customerId} چیست؟` },
+      { label: 'مقایسه رشد', question: `آیا مشتری ${customerId} فرصت رشد دارد؟` },
+    ]
+  }
+
+  if (/(ریزش|ریسک|خطر|churn|risk)/i.test(recentConversation)) {
+    return [
+      { label: 'اقدام حفظ', question: 'برای مشتریان پرریسک چه اقدامی پیشنهاد می‌شود؟' },
+      { label: 'درآمد در خطر', question: 'چه میزان درآمد در معرض ریسک است؟' },
+      { label: 'اولویت تماس', question: 'کدام مشتری پرریسک را اول تماس بگیریم؟' },
+      { label: 'فرصت رشد', question: 'بهترین فرصت رشد کدام مشتری است؟' },
+    ]
+  }
+
+  if (/(رشد|فرصت|growth|opportunity)/i.test(recentConversation)) {
+    return [
+      { label: 'چرایی رشد', question: 'چرا این مشتریان فرصت رشد دارند؟' },
+      { label: 'اقدام توسعه', question: 'برای فرصت‌های رشد چه اقدامی انجام دهیم؟' },
+      { label: 'اولویت امروز', question: 'امروز کدام فرصت رشد را پیگیری کنیم؟' },
+      { label: 'مشتریان پرریسک', question: 'کدام مشتری‌ها در معرض ریزش هستند؟' },
+    ]
+  }
+
+  return [
+    { label: 'اولویت امروز', question: 'تیم فروش امروز چه کاری انجام دهد؟' },
+    { label: 'مشتریان مهم', question: 'مهم‌ترین مشتریان برای پیگیری کدام‌اند؟' },
+    { label: 'فرصت رشد', question: 'بهترین مشتری برای رشد کیست؟' },
+    { label: 'ریسک ریزش', question: 'کدام مشتری‌ها در معرض ریزش هستند؟' },
+  ]
+}
 
 const SECTION_HEADINGS = new Set(['وضعیت فعلی', 'چرا مهم است', 'شواهد', 'شواهد از CRM', 'اقدام پیشنهادی'])
 
@@ -37,6 +80,8 @@ export function SalesAssistantChat() {
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, isLoading])
+
+  const quickActions = conversationQuickActions(messages)
 
   async function sendMessage(message: string) {
     if (!message || isLoading) return
@@ -129,7 +174,7 @@ export function SalesAssistantChat() {
           </header>
 
           <div className="flex flex-wrap gap-1.5 border-b bg-muted/20 px-3 py-2" aria-label="سؤال‌های پیشنهادی">
-            {QUICK_ACTIONS.map((action) => (
+            {quickActions.map((action) => (
               <Button
                 key={action.label}
                 type="button"
