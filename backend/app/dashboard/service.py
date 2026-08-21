@@ -4,18 +4,19 @@ from __future__ import annotations
 from statistics import median
 from typing import Any
 
-from backend.app.complaint_store import complaint_store
-from backend.app.crm_store import crm_store
-from backend.app.dashboard.ai_service import dashboard_ai_service
-from backend.app.dashboard.logic.actions import build_recommended_actions
-from backend.app.dashboard.logic.decisions import classify_dashboard_decision
-from backend.app.dashboard.logic.opportunity import (
+from ..complaint_store import complaint_store
+from ..crm_store import crm_store
+from .ai_service import dashboard_ai_service
+from .logic.actions import build_recommended_actions
+from .logic.decisions import classify_dashboard_decision
+from .logic.matrix import build_strategic_matrix
+from .logic.opportunity import (
     build_opportunity_assessment,
     is_growth_opportunity,
 )
-from backend.app.dashboard.logic.risk import HIGH_RISK_LEVELS, build_risk_explanation
-from backend.app.dashboard.logic.summary import build_executive_summary
-from backend.app.dashboard.schemas import (
+from .logic.risk import HIGH_RISK_LEVELS, build_risk_explanation
+from .logic.summary import build_executive_summary
+from .schemas import (
     DashboardMetric,
     DashboardAIExecutiveSummaryResponse,
     DashboardAIExplanationResponse,
@@ -25,8 +26,9 @@ from backend.app.dashboard.schemas import (
     ExecutiveSummaryResponse,
     RiskOpportunityMapResponse,
     RiskOpportunityPoint,
+    StrategicMatrixResponse,
 )
-from backend.app.data_loader import SNAPSHOT_DATE, store
+from ..data_loader import SNAPSHOT_DATE, store
 
 
 # Matches the existing Dashboard priority definition; used only to flag map points.
@@ -223,6 +225,10 @@ class DashboardService:
                 for model in models
             ],
         )
+
+    def get_strategic_matrix(self) -> StrategicMatrixResponse:
+        result = build_strategic_matrix(self._records())
+        return StrategicMatrixResponse(snapshot_date=SNAPSHOT_DATE, **result)
 
     def get_executive_summary(self) -> ExecutiveSummaryResponse:
         models = self._read_models()

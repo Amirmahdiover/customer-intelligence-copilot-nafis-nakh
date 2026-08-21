@@ -5,6 +5,7 @@ import {
   getCustomerBestOffer,
   getCustomerById,
   getCustomerChurn,
+  getCustomerNegotiationScore,
   getCustomerComplaints,
   getCustomerComplaintsCount,
   getCustomerCrm,
@@ -133,6 +134,14 @@ export function useCustomerChurn(id: string) {
   return useQuery({
     queryKey: ['crm', 'churn', id],
     queryFn: () => getCustomerChurn(id),
+    enabled: !!id,
+  })
+}
+
+export function useCustomerNegotiationScore(id: string) {
+  return useQuery({
+    queryKey: ['crm', 'negotiation-score', id],
+    queryFn: () => getCustomerNegotiationScore(id),
     enabled: !!id,
   })
 }

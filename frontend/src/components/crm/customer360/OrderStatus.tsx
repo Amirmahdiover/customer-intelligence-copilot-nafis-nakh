@@ -25,7 +25,7 @@ export function OrderStatusSection({ customerId }: OrderStatusProps) {
 
   if (!activeOrder) {
     return (
-      <Card className="mb-5">
+      <Card>
         <CardHeader>
           <CardTitle>سفارش فعلی</CardTitle>
         </CardHeader>
@@ -40,7 +40,7 @@ export function OrderStatusSection({ customerId }: OrderStatusProps) {
   }
 
   return (
-    <Card className="mb-5">
+    <Card>
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle>سفارش فعلی</CardTitle>
         {activeOrder.delayDays && activeOrder.delayDays > 0 && (

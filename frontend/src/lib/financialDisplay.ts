@@ -36,5 +36,6 @@ export const FINANCIAL_COLUMN_LABELS = {
   amount_collected: 'مبلغ وصول',
   outstanding_balance: 'مانده',
   due_date: 'تاریخ سررسید',
+  days_until_due: 'مانده تا سررسید',
   check_date: 'تاریخ چک برگشتی',
 } as const

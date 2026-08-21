@@ -24,17 +24,32 @@ import {
   creditStatusVariant,
   formatCreditPercent,
 } from '@/lib/financialDisplay'
-import { formatCurrency, formatDate, formatNumber } from '@/lib/formatters'
+import { daysSince, formatCurrency, formatDate, formatNumber } from '@/lib/formatters'
 import { cn } from '@/lib/utils'
 
 interface FinancialSectionProps {
   customerId: string
 }
 
-type DetailPanel = 'not-due' | 'returned' | null
+/** Days remaining until the due date, measured from the analytics snapshot. */
+function daysUntilDue(dueDate: string): number {
+  return -daysSince(dueDate)
+}
+
+function formatDayCount(days: number): string {
+  if (days > 0) return `${formatNumber(days)} روز دیگر`
+  if (days === 0) return 'امروز'
+  return `${formatNumber(Math.abs(days))} روز گذشته`
+}
+
+function formatDaysUntilDue(dueDate: string | null): string {
+  if (!dueDate) return '—'
+  const days = daysUntilDue(dueDate)
+  return Number.isNaN(days) ? '—' : formatDayCount(days)
+}
 
 export function FinancialSection({ customerId }: FinancialSectionProps) {
-  const [detailPanel, setDetailPanel] = useState<DetailPanel>(null)
+  const [showDetail, setShowDetail] = useState(false)
   const {
     data: financial,
     isLoading,
@@ -46,28 +61,31 @@ export function FinancialSection({ customerId }: FinancialSectionProps) {
     isLoading: notDueLoading,
     isError: notDueError,
     refetch: refetchNotDue,
-  } = useCustomerNotDueInvoices(customerId, detailPanel === 'not-due')
+  } = useCustomerNotDueInvoices(customerId, true)
   const {
     data: returnedChecks,
     isLoading: returnedLoading,
     isError: returnedError,
     refetch: refetchReturned,
-  } = useCustomerReturnedChecks(customerId, detailPanel === 'returned')
+  } = useCustomerReturnedChecks(customerId, showDetail)
 
   if (isLoading) return <SectionSkeleton />
   if (isError || !financial) {
     return <ErrorState onRetry={() => refetch()} />
   }
 
-  const togglePanel = (panel: DetailPanel) => {
-    setDetailPanel((prev) => (prev === panel ? null : panel))
-  }
-
-  const hasOutstanding = financial.outstandingBalance > 0
   const creditVariant = creditStatusVariant(financial.creditStatus)
 
+  const upcomingDays = (notDueInvoices ?? [])
+    .map((invoice) => (invoice.dueDate ? daysUntilDue(invoice.dueDate) : null))
+    .filter((days): days is number => days != null && !Number.isNaN(days))
+  const nearestDueDays = upcomingDays.length > 0 ? Math.min(...upcomingDays) : null
+
+  const hasInvoices = financial.notDueInvoiceCount > 0
+  const hasChecks = financial.returnedCheckCount > 0
+
   return (
-    <Card className="mb-5">
+    <Card className="[--card-spacing:--spacing(4)]">
       <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
         <CardTitle>وضعیت مالی</CardTitle>
         <div className="flex flex-wrap gap-2">
@@ -87,82 +105,49 @@ export function FinancialSection({ customerId }: FinancialSectionProps) {
         </div>
       </CardHeader>
       <CardContent>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
-          <div className="rounded-md border bg-muted/50 p-3.5">
-            <span className="mb-1 block text-xs text-muted-foreground">
-              مانده معوق
-            </span>
-            <span
-              className={cn(
-                'text-lg font-bold',
-                hasOutstanding ? 'text-destructive' : 'text-emerald-600',
-              )}
-            >
-              {formatCurrency(financial.outstandingBalance)}
-            </span>
-          </div>
-
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <button
             type="button"
             className={cn(
-              'rounded-md border bg-muted/50 p-3.5 text-right transition-colors hover:bg-muted/80',
-              detailPanel === 'not-due' && 'ring-2 ring-primary/30',
-            )}
-            onClick={() => togglePanel('not-due')}
-          >
-            <span className="mb-1 flex items-center justify-between text-xs text-muted-foreground">
-              فاکتور سررسیدنرسیده
-              {detailPanel === 'not-due' ? (
-                <ChevronUp size={14} />
-              ) : (
-                <ChevronDown size={14} />
-              )}
-            </span>
-            <span className="text-lg font-bold text-card-foreground">
-              {formatNumber(financial.notDueInvoiceCount)} فاکتور
-            </span>
-          </button>
-
-          <button
-            type="button"
-            className={cn(
-              'rounded-md border bg-muted/50 p-3.5 text-right transition-colors hover:bg-muted/80',
-              detailPanel === 'returned' && 'ring-2 ring-primary/30',
+              'rounded-md border bg-muted/50 p-3 text-start transition-colors hover:bg-muted/80',
+              showDetail && 'ring-2 ring-primary/30',
               financial.hasReturnedCheck && 'border-destructive/30',
             )}
-            onClick={() => togglePanel('returned')}
+            onClick={() => setShowDetail((prev) => !prev)}
+            aria-expanded={showDetail}
           >
-            <span className="mb-1 flex items-center justify-between text-xs text-muted-foreground">
-              چک برگشتی
-              {detailPanel === 'returned' ? (
-                <ChevronUp size={14} />
-              ) : (
-                <ChevronDown size={14} />
-              )}
+            <span className="mb-1 flex items-center justify-between gap-2 text-xs text-muted-foreground">
+              فاکتور و چک برگشتی
+              {showDetail ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
             </span>
-            <span
-              className={cn(
-                'text-lg font-bold',
-                financial.hasReturnedCheck
-                  ? 'text-destructive'
-                  : 'text-card-foreground',
-              )}
-            >
-              {formatNumber(financial.returnedCheckCount)} مورد
-            </span>
-            {financial.lastReturnedCheckDate && (
-              <span className="mt-1 block text-xs text-muted-foreground">
-                آخرین: {formatDate(financial.lastReturnedCheckDate)}
+            <span className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+              <span className="text-lg font-bold tabular-nums text-card-foreground">
+                {formatNumber(financial.notDueInvoiceCount)} فاکتور
               </span>
-            )}
+              {hasChecks && (
+                <span className="text-sm font-semibold tabular-nums text-destructive">
+                  · {formatNumber(financial.returnedCheckCount)} چک برگشتی
+                </span>
+              )}
+            </span>
+            <span className="mt-1 block text-xs text-muted-foreground">
+              {hasInvoices
+                ? nearestDueDays != null
+                  ? `نزدیک‌ترین سررسید: ${formatDayCount(nearestDueDays)}`
+                  : 'تاریخ سررسید ثبت نشده است'
+                : 'فاکتور سررسیدنرسیده‌ای وجود ندارد'}
+              {financial.lastReturnedCheckDate && (
+                <> · آخرین چک: {formatDate(financial.lastReturnedCheckDate)}</>
+              )}
+            </span>
           </button>
 
-          <div className="rounded-md border bg-muted/50 p-3.5">
+          <div className="rounded-md border bg-muted/50 p-3">
             <span className="mb-1 block text-xs text-muted-foreground">
               اعتبار مصرف‌شده
             </span>
             <div className="mb-1 flex flex-wrap items-center gap-2">
-              <span className="text-lg font-bold text-card-foreground">
+              <span className="text-lg font-bold tabular-nums text-card-foreground">
                 {formatCreditPercent(financial.creditUsedPercent)}
               </span>
               <StatusBadge
@@ -180,97 +165,109 @@ export function FinancialSection({ customerId }: FinancialSectionProps) {
             )}
           </div>
 
-          <div className="rounded-md border bg-muted/50 p-3.5">
-            <span className="mb-1 block text-xs text-muted-foreground">
-              هزینه واقعی تأخیر
-            </span>
-            <span className="text-lg font-bold text-amber-600">
-              {formatCurrency(financial.delayCost)}
-            </span>
-            <span className="mt-1 block text-xs text-muted-foreground">
-              نرخ سالانه:{' '}
-              {(financial.annualFinancingRate * 100).toLocaleString('fa-IR')}٪
-            </span>
-          </div>
         </div>
 
-        {!hasOutstanding && !financial.hasReturnedCheck && (
-          <p className="mt-3 text-sm text-emerald-600">بدهی معوق ثبت نشده است.</p>
-        )}
-
-        {detailPanel === 'not-due' && (
-          <div className="mt-4">
-            {notDueLoading && <SectionSkeleton />}
-            {notDueError && <ErrorState onRetry={() => refetchNotDue()} />}
-            {!notDueLoading && !notDueError && financial.notDueInvoiceCount === 0 && (
-              <p className="text-sm text-muted-foreground">
-                فاکتور باز با سررسید آینده (نسبت به snapshot) وجود ندارد.
-              </p>
-            )}
-            {!notDueLoading &&
-              !notDueError &&
-              notDueInvoices &&
-              notDueInvoices.length > 0 && (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>{FINANCIAL_COLUMN_LABELS.invoice_id}</TableHead>
-                      <TableHead>{FINANCIAL_COLUMN_LABELS.invoice_total}</TableHead>
-                      <TableHead>{FINANCIAL_COLUMN_LABELS.amount_collected}</TableHead>
-                      <TableHead>{FINANCIAL_COLUMN_LABELS.outstanding_balance}</TableHead>
-                      <TableHead>{FINANCIAL_COLUMN_LABELS.due_date}</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {notDueInvoices.map((invoice) => (
-                      <TableRow key={invoice.invoiceId ?? invoice.dueDate}>
-                        <TableCell dir="ltr">{invoice.invoiceId ?? '—'}</TableCell>
-                        <TableCell>{formatCurrency(invoice.invoiceTotal)}</TableCell>
-                        <TableCell>{formatCurrency(invoice.amountCollected)}</TableCell>
-                        <TableCell>{formatCurrency(invoice.outstandingBalance)}</TableCell>
-                        <TableCell>
-                          {invoice.dueDate ? formatDate(invoice.dueDate) : '—'}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+        {showDetail && (
+          <div className="mt-4 space-y-5">
+            <div>
+              <h4 className="mb-2 text-xs font-medium text-muted-foreground">
+                فاکتورهای سررسیدنرسیده
+              </h4>
+              {notDueLoading && <SectionSkeleton />}
+              {notDueError && <ErrorState onRetry={() => refetchNotDue()} />}
+              {!notDueLoading && !notDueError && !hasInvoices && (
+                <p className="text-sm text-muted-foreground">
+                  فاکتور باز با سررسید آینده (نسبت به snapshot) وجود ندارد.
+                </p>
               )}
-          </div>
-        )}
+              {!notDueLoading &&
+                !notDueError &&
+                notDueInvoices &&
+                notDueInvoices.length > 0 && (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>{FINANCIAL_COLUMN_LABELS.invoice_id}</TableHead>
+                        <TableHead>{FINANCIAL_COLUMN_LABELS.invoice_total}</TableHead>
+                        <TableHead>
+                          {FINANCIAL_COLUMN_LABELS.amount_collected}
+                        </TableHead>
+                        <TableHead>
+                          {FINANCIAL_COLUMN_LABELS.outstanding_balance}
+                        </TableHead>
+                        <TableHead>{FINANCIAL_COLUMN_LABELS.due_date}</TableHead>
+                        <TableHead>
+                          {FINANCIAL_COLUMN_LABELS.days_until_due}
+                        </TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {notDueInvoices.map((invoice) => {
+                        const remaining = invoice.dueDate
+                          ? daysUntilDue(invoice.dueDate)
+                          : null
+                        return (
+                          <TableRow key={invoice.invoiceId ?? invoice.dueDate}>
+                            <TableCell dir="ltr">{invoice.invoiceId ?? '—'}</TableCell>
+                            <TableCell>{formatCurrency(invoice.invoiceTotal)}</TableCell>
+                            <TableCell>
+                              {formatCurrency(invoice.amountCollected)}
+                            </TableCell>
+                            <TableCell>
+                              {formatCurrency(invoice.outstandingBalance)}
+                            </TableCell>
+                            <TableCell>
+                              {invoice.dueDate ? formatDate(invoice.dueDate) : '—'}
+                            </TableCell>
+                            <TableCell
+                              className={cn(
+                                'tabular-nums',
+                                remaining != null && remaining < 0 && 'text-destructive',
+                              )}
+                            >
+                              {formatDaysUntilDue(invoice.dueDate)}
+                            </TableCell>
+                          </TableRow>
+                        )
+                      })}
+                    </TableBody>
+                  </Table>
+                )}
+            </div>
 
-        {detailPanel === 'returned' && (
-          <div className="mt-4">
-            {returnedLoading && <SectionSkeleton />}
-            {returnedError && <ErrorState onRetry={() => refetchReturned()} />}
-            {!returnedLoading &&
-              !returnedError &&
-              financial.returnedCheckCount === 0 && (
+            <div>
+              <h4 className="mb-2 text-xs font-medium text-muted-foreground">
+                چک‌های برگشتی
+              </h4>
+              {returnedLoading && <SectionSkeleton />}
+              {returnedError && <ErrorState onRetry={() => refetchReturned()} />}
+              {!returnedLoading && !returnedError && !hasChecks && (
                 <p className="text-sm text-muted-foreground">
                   چک برگشتی برای این مشتری ثبت نشده است.
                 </p>
               )}
-            {!returnedLoading &&
-              !returnedError &&
-              returnedChecks &&
-              returnedChecks.length > 0 && (
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>{FINANCIAL_COLUMN_LABELS.check_date}</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {returnedChecks.map((check, index) => (
-                      <TableRow key={`${check.date}-${index}`}>
-                        <TableCell>
-                          {check.date ? formatDate(check.date) : '—'}
-                        </TableCell>
+              {!returnedLoading &&
+                !returnedError &&
+                returnedChecks &&
+                returnedChecks.length > 0 && (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>{FINANCIAL_COLUMN_LABELS.check_date}</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              )}
+                    </TableHeader>
+                    <TableBody>
+                      {returnedChecks.map((check, index) => (
+                        <TableRow key={`${check.date}-${index}`}>
+                          <TableCell>
+                            {check.date ? formatDate(check.date) : '—'}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+            </div>
           </div>
         )}
       </CardContent>

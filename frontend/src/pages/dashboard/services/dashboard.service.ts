@@ -6,6 +6,7 @@ import type {
   DashboardPriorityCustomer,
   ExecutiveSummaryResponse,
   RiskOpportunityMapResponse,
+  StrategicMatrixResponse,
 } from '../types/dashboard.types'
 
 /** Read-only access to the isolated Dashboard API endpoints. */
@@ -19,6 +20,10 @@ export function getDashboardPriorities(limit = 8) {
 
 export function getRiskOpportunityMap() {
   return apiFetch<RiskOpportunityMapResponse>('/dashboard/risk-opportunity-map')
+}
+
+export function getStrategicMatrix() {
+  return apiFetch<StrategicMatrixResponse>('/dashboard/strategic-matrix')
 }
 
 export function getExecutiveSummary() {

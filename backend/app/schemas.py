@@ -490,6 +490,56 @@ class ChurnResponse(BaseModel):
     }})
 
 
+class NegotiationPillar(BaseModel):
+    score: float = Field(..., ge=0, le=1, description="Pillar score on a 0-1 scale.")
+    weight: float = Field(..., ge=0, le=1)
+    contribution: float
+    method: Literal["ml_model", "rule_based_scorecard"]
+    note: Optional[str] = None
+    confidence: Literal["high", "medium", "low"]
+
+
+class NegotiationScoreResponse(BaseModel):
+    Customer_ID: str
+    method: Literal["negotiation_score"] = "negotiation_score"
+    negotiation_score: float = Field(..., ge=0, le=100, description="Weighted success score 0-100.")
+    recommendation: str
+    pillars: dict[str, NegotiationPillar]
+    key_drivers: list[str]
+    warnings: list[str]
+    snapshot_date: Optional[str] = Field(
+        None, description="Negotiation profile snapshot date (2022-03-01)."
+    )
+
+    model_config = ConfigDict(json_schema_extra={"example": {
+        "Customer_ID": "C_551361",
+        "method": "negotiation_score",
+        "negotiation_score": 69.41,
+        "recommendation": "شانس موفقیت متوسط - نیازمند آماده‌سازی و امتیاز متقابل. ضعیف‌ترین محور: سلامت وصول (49%)",
+        "pillars": {
+            "collection": {
+                "score": 0.49, "weight": 0.25, "contribution": 0.1225,
+                "method": "rule_based_scorecard", "note": "سابقهٔ پرداخت متوسط", "confidence": "medium",
+            },
+            "retention": {
+                "score": 0.99, "weight": 0.25, "contribution": 0.2475,
+                "method": "ml_model", "note": "مدل Logistic Regression، AUC=0.8823", "confidence": "high",
+            },
+            "loyalty": {
+                "score": 0.49, "weight": 0.25, "contribution": 0.1225,
+                "method": "ml_model", "note": "سهم سبد پیش‌بینی‌شده؛ مدل Ridge، R²=0.3983", "confidence": "medium",
+            },
+            "cash": {
+                "score": 0.80, "weight": 0.25, "contribution": 0.2,
+                "method": "rule_based_scorecard", "note": "مشتری نقدی و سودآور", "confidence": "medium",
+            },
+        },
+        "key_drivers": ["✓ خرید اخیر (12 روز پیش) - رابطهٔ فعال"],
+        "warnings": [],
+        "snapshot_date": "2022-03-01",
+    }})
+
+
 # ---------------------------------------------------------------------------
 # /customers/{id}/financial — customer_financial_status.csv pipeline
 # ---------------------------------------------------------------------------

@@ -1,5 +1,5 @@
 import { NavLink, Outlet } from 'react-router-dom'
-import { LayoutDashboard, Users, Menu, ShoppingCart, MessageSquareWarning, TrendingUp } from 'lucide-react'
+import { LayoutDashboard, Users, Menu } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
@@ -8,9 +8,6 @@ import { cn } from '@/lib/utils'
 const NAV_ITEMS = [
   { to: '/crm', end: true, icon: LayoutDashboard, label: 'داشبورد' },
   { to: '/crm/customers', end: false, icon: Users, label: 'مشتریان' },
-  { to: '/crm/orders', end: true, icon: ShoppingCart, label: 'سفارش‌ها' },
-  { to: '/crm/complaints', end: true, icon: MessageSquareWarning, label: 'شکایت‌ها' },
-  { to: '/crm/competitors', end: true, icon: TrendingUp, label: 'تحلیل رقبا' },
 ] as const
 
 function SidebarNav({ onNavigate, compact = false, onToggle }: { onNavigate?: () => void; compact?: boolean; onToggle?: () => void }) {
@@ -50,7 +47,7 @@ function SidebarNav({ onNavigate, compact = false, onToggle }: { onNavigate?: ()
 
 export function CrmLayout() {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
-  const [desktopSidebarCollapsed, setDesktopSidebarCollapsed] = useState(true)
+  const [desktopSidebarCollapsed, setDesktopSidebarCollapsed] = useState(false)
 
   return (
     <div className="flex min-h-screen">

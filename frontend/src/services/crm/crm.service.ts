@@ -7,6 +7,7 @@ import {
   mapAction,
   mapBestOffer,
   mapChurn,
+  mapNegotiationScore,
   mapComplaintDetail,
   mapCrmInteraction,
   mapCrmLatest,
@@ -28,6 +29,7 @@ import type {
   ApiCustomerHeaderListResponse,
   ApiCustomerHeaderResponse,
   ApiKpiResponse,
+  ApiNegotiationScoreResponse,
   ApiNotDueInvoicesResponse,
   ApiReturnedChecksResponse,
   ApiRiskResponse,
@@ -45,6 +47,7 @@ import type {
   CustomerFilters,
   CustomerFinancial,
   Insight,
+  NegotiationScore,
   NotDueInvoice,
   Order,
   PaginatedResult,
@@ -84,6 +87,10 @@ function applyClientFilters(
 
   if (filters.risk && filters.risk !== 'all') {
     result = result.filter((c) => c.risk.overall === filters.risk)
+  }
+
+  if (filters.valueTier && filters.valueTier !== 'all') {
+    result = result.filter((c) => c.valueTier === filters.valueTier)
   }
 
   if (filters.paymentStatus && filters.paymentStatus !== 'all') {
@@ -323,6 +330,15 @@ export async function getCustomerChurn(id: string): Promise<CustomerChurn> {
     `/customers/${encodeURIComponent(id)}/churn`,
   )
   return mapChurn(response)
+}
+
+export async function getCustomerNegotiationScore(
+  id: string,
+): Promise<NegotiationScore> {
+  const response = await apiFetch<ApiNegotiationScoreResponse>(
+    `/customers/${encodeURIComponent(id)}/negotiation-score`,
+  )
+  return mapNegotiationScore(response)
 }
 
 export async function getGlobalInsights(): Promise<Insight[]> {

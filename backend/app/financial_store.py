@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from backend.app.config import ANNUAL_FINANCING_RATE
+from .config import ANNUAL_FINANCING_RATE
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 STATUS_CSV = DATA_DIR / "customer_financial_status.csv"

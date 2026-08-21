@@ -5,7 +5,7 @@ import { KPICards } from './components/KPICards'
 import { PriorityCustomerTable } from './components/PriorityCustomerTable'
 import { PriorityPortfolioView } from './components/PriorityPortfolioView'
 import { PriorityCustomerDetail } from './components/PriorityCustomerDetail'
-import { getDashboardOverview, getDashboardPriorities } from './services/dashboard.service'
+import { getDashboardOverview, getDashboardPriorities, getStrategicMatrix } from './services/dashboard.service'
 import { ErrorState } from '@/components/crm/shared/ErrorState'
 import { KpiSkeleton, SectionSkeleton } from '@/components/crm/shared/skeletons/CrmSkeletons'
 import type { DashboardPriorityCustomer } from './types/dashboard.types'
@@ -14,18 +14,20 @@ export function Dashboard() {
   const [selectedCustomer, setSelectedCustomer] = useState<DashboardPriorityCustomer | null>(null)
   const overview = useQuery({ queryKey: ['dashboard', 'overview'], queryFn: getDashboardOverview })
   const priorities = useQuery({ queryKey: ['dashboard', 'priorities'], queryFn: () => getDashboardPriorities(100) })
-  const isLoading = overview.isLoading || priorities.isLoading
-  const hasError = overview.isError || priorities.isError
+  const matrix = useQuery({ queryKey: ['dashboard', 'strategic-matrix'], queryFn: getStrategicMatrix })
+  const isLoading = overview.isLoading || priorities.isLoading || matrix.isLoading
+  const hasError = overview.isError || priorities.isError || matrix.isError
   const retry = () => {
     void overview.refetch()
     void priorities.refetch()
+    void matrix.refetch()
   }
 
   if (isLoading) {
     return <div className="mx-auto max-w-[1400px] px-4 py-5 pt-14 lg:px-7 lg:pt-5"><KpiSkeleton /><SectionSkeleton /><SectionSkeleton /></div>
   }
 
-  if (hasError || !overview.data || !priorities.data) {
+  if (hasError || !overview.data || !priorities.data || !matrix.data) {
     return <ErrorState onRetry={retry} message="داده‌های داشبورد فروش بارگذاری نشد." />
   }
 
@@ -44,7 +46,7 @@ export function Dashboard() {
 
       <section className="mb-6 grid items-stretch gap-5 xl:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
         <DecisionAreas priorities={priorities.data} onSelectCustomer={setSelectedCustomer} />
-        <PriorityPortfolioView customers={priorities.data} />
+        <PriorityPortfolioView matrix={matrix.data} />
       </section>
 
       <PriorityCustomerTable customers={priorities.data.slice(0, 9)} onSelectCustomer={setSelectedCustomer} />

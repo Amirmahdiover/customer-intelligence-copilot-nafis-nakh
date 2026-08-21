@@ -1,4 +1,5 @@
 import { formatCustomerIdWithStatus, parseCustomerInfo } from '@/lib/customerInfo'
+import { SNAPSHOT_DATE } from '@/lib/constants'
 import type {
   ApiActionResponse,
   ApiBestOfferResponse,
@@ -11,6 +12,7 @@ import type {
   ApiCustomerProfile,
   ApiCustomerSummary,
   ApiKpiResponse,
+  ApiNegotiationScoreResponse,
   ApiNotDueInvoiceItem,
   ApiNotDueInvoicesResponse,
   ApiOfferRecommendation,
@@ -39,6 +41,9 @@ import type {
   CustomerStatus,
   Insight,
   InsightSeverity,
+  NegotiationPillar,
+  NegotiationPillarKey,
+  NegotiationScore,
   NotDueInvoice,
   Order,
   OrderStatus,
@@ -74,6 +79,17 @@ function mapCustomerStatus(
     return 'watch'
   }
   return 'healthy'
+}
+
+function mapReorderFields(profile: ApiCustomerProfile) {
+  const interval = profile.Avg_Order_Interval_Days
+  return {
+    lastOrderDate: profile.Last_Order_Date ?? SNAPSHOT_DATE,
+    typicalOrderInterval: interval != null ? Math.round(interval) : 0,
+    recencyDays: profile.Recency_Days ?? profile.Days_Since_Last_Order ?? null,
+    daysUntilExpectedNextOrder: profile.Days_Until_Expected_Next_Order ?? null,
+    expectedNextOrderDate: profile.Expected_Next_Order_Date ?? null,
+  }
 }
 
 function mapPaymentStatus(profile: ApiCustomerProfile): PaymentStatus {
@@ -240,8 +256,11 @@ export function mapCustomerInfoToCustomer(
     totalProfit: 0,
     orderCount: 0,
     averageOrderValue: 0,
-    lastOrderDate: '2022-06-30',
-    typicalOrderInterval: 30,
+    lastOrderDate: SNAPSHOT_DATE,
+    typicalOrderInterval: 0,
+    recencyDays: null,
+    daysUntilExpectedNextOrder: null,
+    expectedNextOrderDate: null,
     paymentStatus: header.status === 'غیرفعال' ? 'overdue' : 'paid',
     orderStatus: header.status === 'فعال' ? 'delivered' : 'no-active',
     risk: {
@@ -265,7 +284,7 @@ export function mapCustomerInfoToCustomer(
       pending: 0,
       overdue: 0,
     },
-    lastActivityDate: '2022-06-30',
+    lastActivityDate: SNAPSHOT_DATE,
   }
 }
 
@@ -302,8 +321,7 @@ export function mapSummaryToCustomer(summary: ApiCustomerSummary): Customer {
     totalProfit: profit,
     orderCount: orders,
     averageOrderValue: orders > 0 ? revenue / orders : 0,
-    lastOrderDate: profile.Last_Order_Date ?? '2022-06-30',
-    typicalOrderInterval: profile.Avg_Order_Interval_Days ?? 30,
+    ...mapReorderFields(profile),
     paymentStatus: mapPaymentStatus(profile),
     orderStatus: mapOrderStatus(profile),
     risk: buildDefaultRisk(profile),
@@ -312,7 +330,10 @@ export function mapSummaryToCustomer(summary: ApiCustomerSummary): Customer {
       : [],
     revenueTrend: buildRevenueTrend(profile),
     payment: buildPaymentSummary(profile),
-    lastActivityDate: profile.Last_Order_Date ?? '2022-06-30',
+    lastActivityDate: profile.Last_Order_Date ?? SNAPSHOT_DATE,
+    walletSharePct: profile.Revenue_Share_Pct_Latest,
+    walletShareAvgPct: profile.Revenue_Share_Pct_Avg,
+    walletShareAsOfMonth: profile.Revenue_Share_As_Of_Month,
   }
 }
 
@@ -622,6 +643,40 @@ export function mapChurn(response: ApiChurnResponse): CustomerChurn {
     churnProbability: response.churn_probability,
     churnPrediction: response.churn_prediction,
     riskLevel: response.risk_level,
+    snapshotDate: response.snapshot_date ?? null,
+  }
+}
+
+const NEGOTIATION_PILLAR_KEYS: NegotiationPillarKey[] = [
+  'collection',
+  'retention',
+  'loyalty',
+  'cash',
+]
+
+export function mapNegotiationScore(
+  response: ApiNegotiationScoreResponse,
+): NegotiationScore {
+  const pillars = {} as Record<NegotiationPillarKey, NegotiationPillar>
+  for (const key of NEGOTIATION_PILLAR_KEYS) {
+    const pillar = response.pillars[key]
+    pillars[key] = {
+      score: pillar?.score ?? 0,
+      weight: pillar?.weight ?? 0,
+      contribution: pillar?.contribution ?? 0,
+      method: pillar?.method ?? 'rule_based_scorecard',
+      note: pillar?.note ?? null,
+      confidence: pillar?.confidence ?? 'medium',
+    }
+  }
+  return {
+    customerId: response.Customer_ID,
+    method: response.method,
+    negotiationScore: response.negotiation_score,
+    recommendation: response.recommendation,
+    pillars,
+    keyDrivers: response.key_drivers ?? [],
+    warnings: response.warnings ?? [],
     snapshotDate: response.snapshot_date ?? null,
   }
 }

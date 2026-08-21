@@ -71,6 +71,31 @@ class RiskOpportunityMapResponse(BaseModel):
     customers: list[RiskOpportunityPoint]
 
 
+class StrategicMatrixQuadrant(BaseModel):
+    key: Literal[
+        "golden_loyal",
+        "growth_potential",
+        "high_risk_moneymaker",
+        "marginal",
+    ]
+    label: str
+    action: str
+    count: int
+
+
+class StrategicMatrixThresholds(BaseModel):
+    economic_median: float
+    health_median: float
+
+
+class StrategicMatrixResponse(BaseModel):
+    snapshot_date: str
+    method: Literal["rule_based"] = "rule_based"
+    weighting_note: str
+    thresholds: StrategicMatrixThresholds
+    quadrants: list[StrategicMatrixQuadrant]
+
+
 class ExecutiveSummaryResponse(BaseModel):
     snapshot_date: str
     method: Literal["rule_based"] = "rule_based"
