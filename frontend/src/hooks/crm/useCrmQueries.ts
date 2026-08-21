@@ -18,6 +18,7 @@ import {
   getCustomerReturnedChecks,
   getCustomers,
   getGlobalInsights,
+  getPortfolioTrailing12mRevenue,
 } from '@/services/crm/crm.service'
 import type { CustomerFilters } from '@/types/crm'
 
@@ -25,6 +26,14 @@ export function useCrmOverview() {
   return useQuery({
     queryKey: ['crm', 'overview'],
     queryFn: getCrmOverview,
+  })
+}
+
+export function usePortfolioTrailing12mRevenue() {
+  return useQuery({
+    queryKey: ['crm', 'portfolio', 'trailing-12m-revenue'],
+    queryFn: getPortfolioTrailing12mRevenue,
+    staleTime: 30 * 60 * 1000,
   })
 }
 

@@ -73,6 +73,22 @@ async function fetchAllCustomerHeaders(): Promise<string[]> {
 }
 
 /**
+ * FNV-1a over the customer id. Every customer gets a fixed pseudo-random rank,
+ * so the unsorted listing is not clustered by risk or account status while
+ * staying identical across pages and refetches.
+ */
+function shuffleRank(id: string): number {
+  let hash = 0x811c9dc5
+
+  for (let i = 0; i < id.length; i += 1) {
+    hash ^= id.charCodeAt(i)
+    hash = Math.imul(hash, 0x01000193)
+  }
+
+  return hash >>> 0
+}
+
+/**
  * فیلتر و مرتب‌سازی سمت کلاینت
  */
 function applyClientFilters(
@@ -98,6 +114,10 @@ function applyClientFilters(
     result = result.filter((c) => c.status === filters.status)
   }
 
+  if (filters.accountStatus && filters.accountStatus !== 'all') {
+    result = result.filter((c) => c.accountStatus === filters.accountStatus)
+  }
+
   if (filters.risk && filters.risk !== 'all') {
     result = result.filter((c) => c.risk.overall === filters.risk)
   }
@@ -114,7 +134,12 @@ function applyClientFilters(
     result = result.filter((c) => c.orderStatus === filters.orderStatus)
   }
 
-  const sortField = filters.sortField ?? 'name'
+  const sortField = filters.sortField
+
+  if (!sortField) {
+    return result.sort((a, b) => shuffleRank(a.id) - shuffleRank(b.id))
+  }
+
   const sortDir = filters.sortDirection ?? 'asc'
   const dir = sortDir === 'asc' ? 1 : -1
 
@@ -184,6 +209,19 @@ export async function getCrmOverview(): Promise<CrmOverview> {
   const response = await apiFetch<CrmOverview>('/dashboard/overview')
 
   return response
+}
+
+/**
+ * Portfolio net sales over the trailing 12 months ending on the analytics
+ * snapshot — denominator for «سهم از درآمد شرکت».
+ */
+export async function getPortfolioTrailing12mRevenue(): Promise<number> {
+  const response = await apiFetch<{
+    metrics: Array<{ key: string; value: number }>
+  }>('/dashboard/overview')
+
+  const metric = response.metrics?.find((item) => item.key === 'trailing_12m_revenue')
+  return metric?.value ?? 0
 }
 
 /**

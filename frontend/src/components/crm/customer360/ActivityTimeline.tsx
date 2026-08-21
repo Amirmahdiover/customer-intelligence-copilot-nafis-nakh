@@ -44,7 +44,7 @@ export function ActivityTimeline({ customerId, compact }: ActivityTimelineProps)
   return (
     <Card className="h-full [--card-spacing:--spacing(3.5)]">
       <CardHeader>
-        <CardTitle>{compact ? 'فعالیت اخیر' : 'تاریخچه فعالیت'}</CardTitle>
+        <CardTitle>{compact ? 'آخرین فعالیت‌ها' : 'تاریخچه فعالیت'}</CardTitle>
       </CardHeader>
       <CardContent>
         {events.length === 0 ? (

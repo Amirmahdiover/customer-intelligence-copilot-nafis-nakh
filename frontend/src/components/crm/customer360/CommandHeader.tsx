@@ -1,134 +1,134 @@
-import { MoreHorizontal, Phone, Plus } from 'lucide-react'
+import { Copy } from 'lucide-react'
 import { ErrorState } from '@/components/crm/shared/ErrorState'
 import { CustomerHeaderSkeleton } from '@/components/crm/shared/skeletons/CrmSkeletons'
-import { StatusBadge } from '@/components/crm/shared/StatusBadge'
 import { useToast } from '@/components/crm/shared/Toast'
-import { ValueTierBadge } from '@/components/crm/shared/ValueTierBadge'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent } from '@/components/ui/card'
-import { useCustomer, useCustomerCrm } from '@/hooks/crm/useCrmQueries'
-import { ACCOUNT_STATUS_LABELS, CUSTOMER_STATUS_LABELS } from '@/lib/constants'
-import { formatCurrency, formatNumber, formatRelativeDate } from '@/lib/formatters'
+import {
+  useCustomer,
+  useCustomerNegotiationScore,
+} from '@/hooks/crm/useCrmQueries'
 import { cn } from '@/lib/utils'
 
 interface CommandHeaderProps {
   customerId: string
 }
 
+function collectionRiskLabel(score: number): { text: string; className: string } {
+  if (score < 0.45) {
+    return {
+      text: 'ریسک وصول: بالا',
+      className: 'bg-orange-200 text-amber-700',
+    }
+  }
+  if (score < 0.7) {
+    return {
+      text: 'ریسک وصول: متوسط',
+      className: 'bg-amber-100 text-amber-800',
+    }
+  }
+  return {
+    text: 'ریسک وصول: پایین',
+    className: 'bg-emerald-50 text-emerald-700',
+  }
+}
+
+function healthTag(score: number): { text: string; className: string } {
+  const rounded = Math.round(score)
+  if (score < 45) {
+    return {
+      text: `سلامت رابطه: ${rounded.toLocaleString('fa-IR')} از ۱۰۰ در بحرانی`,
+      className: 'bg-red-100 text-red-600',
+    }
+  }
+  if (score < 70) {
+    return {
+      text: `سلامت رابطه: ${rounded.toLocaleString('fa-IR')} از ۱۰۰ متوسط`,
+      className: 'bg-amber-100 text-amber-800',
+    }
+  }
+  return {
+    text: `سلامت رابطه: ${rounded.toLocaleString('fa-IR')} از ۱۰۰ سالم`,
+    className: 'bg-emerald-50 text-emerald-700',
+  }
+}
+
 export function CommandHeader({ customerId }: CommandHeaderProps) {
   const { showToast } = useToast()
   const { data: customer, isLoading, isError, refetch } = useCustomer(customerId)
-  const { data: crm } = useCustomerCrm(customerId)
+  const { data: negotiation } = useCustomerNegotiationScore(customerId)
 
   if (isLoading) return <CustomerHeaderSkeleton />
   if (isError || !customer) {
     return <ErrorState message="مشتری یافت نشد." onRetry={() => refetch()} />
   }
 
-  const lastInteraction = crm?.updatedAt ?? customer.lastActivityDate
-  const profitMargin =
-    customer.totalRevenue > 0
-      ? Math.round((customer.totalProfit / customer.totalRevenue) * 100)
-      : null
-  const share = customer.walletSharePct
+  const copyId = async () => {
+    try {
+      await navigator.clipboard.writeText(customer.code)
+      showToast('شناسه مشتری کپی شد.')
+    } catch {
+      showToast('کپی شناسه انجام نشد.')
+    }
+  }
 
-  const meta = [
-    customer.email !== '—' ? customer.email : null,
-    customer.phone !== '—' ? customer.phone : null,
-    `آخرین تعامل: ${formatRelativeDate(lastInteraction)}`,
-  ].filter(Boolean)
+  const collection = negotiation?.pillars.collection
+  const collectionTag = collection ? collectionRiskLabel(collection.score) : null
+  const health = negotiation ? healthTag(negotiation.negotiationScore) : null
 
   return (
-    <Card className="h-full gap-0 py-0">
-      <CardContent className="flex h-full flex-col gap-3 px-4 py-3.5">
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5">
-          <h1
-            className="text-xl leading-none font-bold tracking-tight text-card-foreground"
-            dir="ltr"
+    <header className="space-y-3">
+      <div className="flex flex-wrap items-center gap-1.5">
+        {customer.accountStatus ? (
+          <span
+            className={cn(
+              'rounded px-3 py-1.5 text-xs font-medium',
+              customer.accountStatus === 'فعال'
+                ? 'bg-emerald-50 text-emerald-700'
+                : 'bg-neutral-100 text-neutral-500',
+            )}
           >
-            {customer.code}
-          </h1>
-          {customer.accountStatus && (
-            <StatusBadge
-              label={ACCOUNT_STATUS_LABELS[customer.accountStatus]}
-              variantKey={customer.accountStatus === 'فعال' ? 'healthy' : 'high-risk'}
-            />
-          )}
-          <StatusBadge
-            label={CUSTOMER_STATUS_LABELS[customer.status]}
-            variantKey={customer.status}
-          />
-          <ValueTierBadge
-            score={customer.valueScore}
-            tier={customer.valueTier}
-            className="mt-0"
-          />
-        </div>
+            {customer.accountStatus}
+          </span>
+        ) : null}
+        {health ? (
+          <span className={cn('rounded px-3 py-1.5 text-xs font-medium', health.className)}>
+            {health.text}
+          </span>
+        ) : null}
+        {collectionTag ? (
+          <span
+            className={cn(
+              'rounded px-3 py-1.5 text-xs font-medium',
+              collectionTag.className,
+            )}
+          >
+            {collectionTag.text}
+          </span>
+        ) : null}
+      </div>
 
-        <p className="text-xs text-muted-foreground">{meta.join(' · ')}</p>
-
-        <dl className="grid grid-cols-2 gap-3 border-t pt-3">
-          <div>
-            <dt className="text-xs text-muted-foreground">سهم از سبد</dt>
-            <dd className="mt-0.5 flex items-baseline gap-1.5">
-              <span className="text-lg font-semibold tabular-nums text-card-foreground">
-                {share != null ? `${(share * 100).toFixed(1)}٪` : '—'}
-              </span>
-              {customer.walletShareAvgPct != null && (
-                <span className="text-xs tabular-nums text-muted-foreground">
-                  میانگین {(customer.walletShareAvgPct * 100).toFixed(1)}٪
-                </span>
-              )}
-            </dd>
-          </div>
-          <div>
-            <dt className="text-xs text-muted-foreground">سود مشتری</dt>
-            <dd className="mt-0.5 flex items-baseline gap-1.5">
-              <span className="text-lg font-semibold tabular-nums text-card-foreground">
-                {formatCurrency(customer.totalProfit)}
-              </span>
-              {profitMargin != null && (
-                <span
-                  className={cn(
-                    'text-xs tabular-nums',
-                    profitMargin >= 15 ? 'text-emerald-700' : 'text-amber-700',
-                  )}
-                >
-                  {formatNumber(profitMargin)}٪ حاشیه
-                </span>
-              )}
-            </dd>
-          </div>
-        </dl>
-
-        <div className="mt-auto flex flex-wrap items-center gap-1.5 pt-1">
-          <Button
-            type="button"
-            size="sm"
-            onClick={() => showToast('تماس با مشتری ثبت شد.')}
-          >
-            <Phone />
-            تماس
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => showToast('وظیفه جدید ایجاد شد.')}
-          >
-            <Plus />
-            ایجاد وظیفه
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            aria-label="اقدامات بیشتر"
-          >
-            <MoreHorizontal />
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
+      <div className="flex flex-wrap items-center gap-3">
+        <h1
+          className="text-[32px] font-bold leading-none tracking-tight text-black"
+          dir="ltr"
+        >
+          {customer.code}
+        </h1>
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          aria-label="کپی شناسه"
+          onClick={() => void copyId()}
+        >
+          <Copy size={14} />
+        </Button>
+        {customer.segment ? (
+          <span className="rounded-md bg-neutral-100 px-3 py-1.5 text-sm font-semibold text-neutral-800">
+            سگمنت {customer.segment}
+          </span>
+        ) : null}
+      </div>
+    </header>
   )
 }

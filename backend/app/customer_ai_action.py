@@ -9,11 +9,11 @@ from __future__ import annotations
 
 from typing import Any
 
-from backend.app.complaint_store import complaint_store
-from backend.app.crm_store import crm_store
-from backend.app.dashboard.logic.risk import HIGH_RISK_LEVELS
-from backend.app.financial_store import financial_store
-from backend.app.rules import risk_breakdown
+from .complaint_store import complaint_store
+from .crm_store import crm_store
+from .dashboard.logic.risk import HIGH_RISK_LEVELS
+from .financial_store import financial_store
+from .rules import risk_breakdown
 
 
 def _number(value: Any) -> float:

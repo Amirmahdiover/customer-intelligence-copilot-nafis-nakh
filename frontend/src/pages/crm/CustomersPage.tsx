@@ -7,11 +7,11 @@ import { useDebouncedValue } from '@/hooks/useDebouncedValue'
 import type { CustomerFilters } from '@/types/crm'
 
 export function CustomersPage() {
+  // No sortField: the list stays in its shuffled order so active and inactive
+  // customers are mixed until the user narrows it down with a filter.
   const [filters, setFilters] = useState<CustomerFilters>({
     page: 1,
     limit: 10,
-    sortField: 'risk',
-    sortDirection: 'desc',
   })
 
   const debouncedSearch = useDebouncedValue(filters.search ?? '', 300)

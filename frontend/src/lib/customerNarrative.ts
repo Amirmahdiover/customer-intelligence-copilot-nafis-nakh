@@ -155,8 +155,8 @@ export function buildRiskReasons(
     reasons.push('ریسک مالی بالا در ارزیابی قواعد ریسک')
   }
 
-  if (negotiation?.warnings?.length) {
-    reasons.push(...negotiation.warnings)
+  if (negotiation?.keyDrivers?.length) {
+    reasons.push(...negotiation.keyDrivers)
   }
 
   if (reasons.length === 0) {

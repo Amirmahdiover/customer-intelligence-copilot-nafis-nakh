@@ -1,6 +1,8 @@
 const API_BASE =
   import.meta.env.VITE_API_URL ||
-  'https://customer-intelligence-copilot-nafis-nakh.onrender.com'
+  (import.meta.env.DEV
+    ? '/api'
+    : 'https://customer-intelligence-copilot-nafis-nakh.onrender.com')
 
 export class ApiError extends Error {
   status: number
@@ -12,11 +14,21 @@ export class ApiError extends Error {
   }
 }
 
+function buildApiUrl(path: string): URL {
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`
+  const href = `${API_BASE.replace(/\/$/, '')}${normalizedPath}`
+
+  // Relative bases like `/api` need an origin; absolute URLs do not.
+  return href.startsWith('http')
+    ? new URL(href)
+    : new URL(href, window.location.origin)
+}
+
 export async function apiFetch<T>(
   path: string,
   params?: Record<string, string | number | undefined>,
 ): Promise<T> {
-  const url = new URL(`${API_BASE}${path}`)
+  const url = buildApiUrl(path)
 
   if (params) {
     for (const [key, value] of Object.entries(params)) {

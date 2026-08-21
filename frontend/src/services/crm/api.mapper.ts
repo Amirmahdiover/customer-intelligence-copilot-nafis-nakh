@@ -249,8 +249,12 @@ export function mapCustomerInfoToCustomer(
     name: displayLabel,
     code: header.customerId,
     accountStatus,
-    email: header.segment ? `بخش ${header.segment}` : '—',
+    email: '—',
     phone: '—',
+    segment: header.segment || null,
+    salesRepId: null,
+    locationId: null,
+    creditLimit: null,
     status: uiStatus,
     totalRevenue: 0,
     totalProfit: 0,
@@ -314,8 +318,12 @@ export function mapSummaryToCustomer(summary: ApiCustomerSummary): Customer {
     ),
     code: summary.Customer_ID,
     accountStatus: normalizeAccountStatus(summary.Customer_Status),
-    email: summary.Sales_Rep_ID ? `نماینده: ${summary.Sales_Rep_ID}` : '—',
-    phone: summary.Location_ID ? `موقعیت: ${summary.Location_ID}` : '—',
+    email: '—',
+    phone: '—',
+    segment: summary.Customer_Segment ?? null,
+    salesRepId: summary.Sales_Rep_ID ?? null,
+    locationId: summary.Location_ID ?? null,
+    creditLimit: profile.Credit_Limit ?? null,
     status: mapCustomerStatus(summary),
     totalRevenue: revenue,
     totalProfit: profit,
@@ -334,6 +342,11 @@ export function mapSummaryToCustomer(summary: ApiCustomerSummary): Customer {
     walletSharePct: profile.Revenue_Share_Pct_Latest,
     walletShareAvgPct: profile.Revenue_Share_Pct_Avg,
     walletShareAsOfMonth: profile.Revenue_Share_As_Of_Month,
+    annualSalesT12m: profile.Annual_Sales_Trailing12M ?? null,
+    marginPct: profile.Margin_Pct ?? null,
+    bouncedCheckRate: profile.Bounced_Check_Rate ?? null,
+    avgPaymentDelayDays: profile.Avg_Payment_Delay_Days ?? null,
+    maxPaymentDelayDays: profile.Max_Payment_Delay_Days ?? null,
   }
 }
 
@@ -357,6 +370,12 @@ export function mapProfileToCustomer(
     favoriteProducts: buildProductMix(profile),
     revenueTrend: buildRevenueTrend(profile),
     payment: buildPaymentSummary(profile),
+    annualSalesT12m: profile.Annual_Sales_Trailing12M ?? base.annualSalesT12m,
+    creditLimit: profile.Credit_Limit ?? base.creditLimit,
+    marginPct: profile.Margin_Pct ?? base.marginPct,
+    bouncedCheckRate: profile.Bounced_Check_Rate ?? base.bouncedCheckRate,
+    avgPaymentDelayDays: profile.Avg_Payment_Delay_Days ?? base.avgPaymentDelayDays,
+    maxPaymentDelayDays: profile.Max_Payment_Delay_Days ?? base.maxPaymentDelayDays,
   }
 }
 
