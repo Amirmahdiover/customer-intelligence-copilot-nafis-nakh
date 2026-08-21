@@ -251,7 +251,10 @@ class DashboardService:
         )
 
     def get_strategic_matrix(self) -> StrategicMatrixResponse:
-        result = build_strategic_matrix(self._records())
+        active_records = [
+            record for record in self._records() if record.get("Customer_Status") == "فعال"
+        ]
+        result = build_strategic_matrix(active_records)
         return StrategicMatrixResponse(snapshot_date=SNAPSHOT_DATE, **result)
 
     def get_executive_summary(self) -> ExecutiveSummaryResponse:
