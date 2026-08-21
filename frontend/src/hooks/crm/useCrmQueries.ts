@@ -17,6 +17,7 @@ import {
   getCustomerOrders,
   getCustomerReturnedChecks,
   getCustomers,
+  getComplaints,
   getGlobalInsights,
 } from '@/services/crm/crm.service'
 import type { CustomerFilters } from '@/types/crm'
@@ -64,6 +65,13 @@ export function useCustomerComplaints(id: string, enabled = true) {
     queryKey: ['crm', 'complaints', id],
     queryFn: () => getCustomerComplaints(id),
     enabled: !!id && enabled,
+  })
+}
+
+export function useComplaints() {
+  return useQuery({
+    queryKey: ['crm', 'complaints'],
+    queryFn: getComplaints,
   })
 }
 

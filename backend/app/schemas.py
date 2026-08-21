@@ -325,6 +325,15 @@ class CustomerComplaintsListResponse(BaseModel):
     }})
 
 
+class ComplaintListItem(ComplaintDetailItem):
+    customer_id: str
+
+
+class ComplaintsListResponse(BaseModel):
+    total: int
+    complaints: list[ComplaintListItem]
+
+
 # ---------------------------------------------------------------------------
 # /customers/{id}/complaints — legacy analytics sheet (deprecated)
 # ---------------------------------------------------------------------------
