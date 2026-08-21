@@ -2,6 +2,10 @@ const API_BASE =
   import.meta.env.VITE_API_URL ||
   'https://customer-intelligence-copilot-nafis-nakh.onrender.com'
 
+export function apiUrl(path: string): string {
+  return new URL(`${API_BASE}${path}`, window.location.origin).toString()
+}
+
 export class ApiError extends Error {
   status: number
 
@@ -19,7 +23,7 @@ export async function apiFetch<T>(
   // Supplying the page origin makes a relative development URL such as
   // `/api` work through Vite's proxy, while absolute production URLs keep
   // their existing behavior.
-  const url = new URL(`${API_BASE}${path}`, window.location.origin)
+  const url = new URL(apiUrl(path))
 
   if (params) {
     for (const [key, value] of Object.entries(params)) {
@@ -51,7 +55,7 @@ export async function apiFetch<T>(
 }
 
 export async function apiPost<T>(path: string, body: unknown): Promise<T> {
-  const url = new URL(`${API_BASE}${path}`, window.location.origin)
+  const url = new URL(apiUrl(path))
   const response = await fetch(url.toString(), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

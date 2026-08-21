@@ -15,7 +15,7 @@ import uuid
 from collections import deque
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, Iterator
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
@@ -75,6 +75,8 @@ def _plain_persian_text(text: str) -> str:
     cleaned = re.sub(r"^\s{0,3}#{1,6}\s*", "", cleaned, flags=re.MULTILINE)
     cleaned = re.sub(r"\*{1,3}([^*]+)\*{1,3}", r"\1", cleaned)
     cleaned = re.sub(r"^\s*[-*+]\s+", "• ", cleaned, flags=re.MULTILINE)
+    cleaned = re.sub(r"\bCRM\b", "سامانه مدیریت ارتباط با مشتری", cleaned, flags=re.IGNORECASE)
+    cleaned = re.sub(r"\bAI\b", "هوش مصنوعی", cleaned, flags=re.IGNORECASE)
     cleaned = re.sub(r"\n{3,}", "\n\n", cleaned).strip()
     return cleaned
 
@@ -334,6 +336,64 @@ class SalesAssistantService:
         )
         return answer, sources, session_id
 
+    def stream_answer(self, message: str, session_id: str | None = None) -> Iterator[dict[str, Any]]:
+        """Yield OpenAI text deltas while retaining the same isolated memory flow.
+
+        CRM retrieval completes before the stream opens, so the model still gets
+        a coherent, bounded live-data context without delaying every token.
+        """
+        total_started_at = time.perf_counter()
+        session_id, memory = conversation_memory_store.get(session_id)
+        customer_match = _CUSTOMER_ID.search(message)
+        is_greeting = bool(_GREETING.fullmatch(message.strip()))
+        customer_id = customer_match.group(1).upper() if customer_match else (None if is_greeting else memory.active_customer_id)
+
+        retrieval_started_at = time.perf_counter()
+        crm_context, sources = self.tools.retrieve_context(message, customer_id)
+        retrieval_ms = (time.perf_counter() - retrieval_started_at) * 1000
+        history_started_at = time.perf_counter()
+        conversation_context = conversation_memory_store.context(memory)
+        history_ms = (time.perf_counter() - history_started_at) * 1000
+        context = {"crm_context": crm_context, "conversation_context": conversation_context}
+        model = self._select_model(customer_id)
+        yield {"type": "meta", "session_id": session_id, "sources": sources}
+
+        answer_parts: list[str] = []
+        first_token_at: float | None = None
+        try:
+            for delta in self._stream_openai(message, context, model):
+                cleaned_delta = _plain_persian_text(delta) if delta.strip() else delta
+                if cleaned_delta:
+                    if first_token_at is None:
+                        first_token_at = time.perf_counter()
+                        logger.info(
+                            "Sales copilot stream first_token: session_id=%s model=%s ttft_ms=%d retrieval_ms=%d history_ms=%d",
+                            session_id, model, (first_token_at - total_started_at) * 1000, retrieval_ms, history_ms,
+                        )
+                    answer_parts.append(cleaned_delta)
+                    yield {"type": "delta", "delta": cleaned_delta}
+            answer = _plain_persian_text("".join(answer_parts))
+            if not answer or _has_untranslated_english(answer):
+                raise RuntimeError("OpenAI streaming response was empty or untranslated")
+        except RuntimeError:
+            answer = self._fallback_answer(message, context)
+            if not answer_parts:
+                yield {"type": "delta", "delta": answer}
+            logger.warning("Sales copilot streaming fallback used: session_id=%s", session_id)
+
+        answer_customer_match = _CUSTOMER_ID.search(answer)
+        conversation_memory_store.append(
+            memory, message, answer,
+            customer_id or (answer_customer_match.group(1).upper() if answer_customer_match else None),
+        )
+        logger.info(
+            "Sales copilot stream completed: session_id=%s model=%s ttft_ms=%s total_ms=%d retrieval_ms=%d history_ms=%d",
+            session_id, model,
+            int((first_token_at - total_started_at) * 1000) if first_token_at else "n/a",
+            (time.perf_counter() - total_started_at) * 1000, retrieval_ms, history_ms,
+        )
+        yield {"type": "done", "sources": sources}
+
     @staticmethod
     def _select_model(customer_id: str | None) -> str:
         """Allow a faster default model while retaining an optional complex-analysis model."""
@@ -415,6 +475,57 @@ Return plain Persian text only. Do not use Markdown symbols such as **, #, backt
                 error,
             )
             raise RuntimeError("OpenAI is unavailable") from error
+
+    @staticmethod
+    def _stream_openai(message: str, context: dict[str, Any], model: str) -> Iterator[str]:
+        """Read Responses API server-sent events and expose output-text deltas."""
+        api_key = os.getenv("OPENAI_API_KEY")
+        if not api_key:
+            raise RuntimeError("OPENAI_API_KEY is not configured")
+        instructions = """You are an intelligent sales assistant for a CRM system.
+
+Your job is to help sales managers make decisions using the provided CRM data.
+Rules:
+- Always answer in Persian and only from the CRM data provided.
+- Be concise, management-oriented, and explain the reason behind every recommendation.
+- Never fabricate customers, facts, or numbers, and say when data is insufficient.
+- Do not expose raw field names, technical details, or English source text.
+- Greetings and general questions must still receive a helpful Persian answer; do not claim CRM facts without context.
+- Use historical evidence only when it exists in CRM context.
+Return plain Persian text only. Do not use Markdown symbols such as **, #, backticks, or Markdown list markers; use simple headings and the • character only when a list is necessary."""
+        input_text = json.dumps({"question": message, **context}, ensure_ascii=False, default=str)
+        body = json.dumps({
+            "model": model,
+            "instructions": instructions,
+            "input": input_text,
+            "store": False,
+            "stream": True,
+            "max_output_tokens": 550,
+        }, ensure_ascii=False).encode("utf-8")
+        request = Request(_OPENAI_RESPONSES_URL, data=body, headers={
+            "Authorization": f"Bearer {api_key}", "Content-Type": "application/json", "Accept": "text/event-stream",
+        }, method="POST")
+        started_at = time.perf_counter()
+        logger.info("Sales copilot OpenAI stream started: model=%s context_size_bytes=%d", model, len(input_text.encode("utf-8")))
+        try:
+            timeout_seconds = float(os.getenv("OPENAI_TIMEOUT_SECONDS", "40"))
+            with urlopen(request, timeout=timeout_seconds) as response:
+                for raw_line in response:
+                    line = raw_line.decode("utf-8").strip()
+                    if not line.startswith("data:"):
+                        continue
+                    data = line[5:].strip()
+                    if data == "[DONE]":
+                        break
+                    event = json.loads(data)
+                    if event.get("type") == "response.output_text.delta":
+                        delta = event.get("delta")
+                        if isinstance(delta, str):
+                            yield delta
+            logger.info("Sales copilot OpenAI stream response completed: model=%s request_ms=%d", model, (time.perf_counter() - started_at) * 1000)
+        except (HTTPError, URLError, TimeoutError, ValueError, UnicodeDecodeError, json.JSONDecodeError) as error:
+            logger.warning("Sales copilot OpenAI stream failed: model=%s duration_ms=%d error=%s", model, (time.perf_counter() - started_at) * 1000, error)
+            raise RuntimeError("OpenAI streaming is unavailable") from error
 
     @staticmethod
     def _fallback_answer(message: str, context: dict[str, Any]) -> str:

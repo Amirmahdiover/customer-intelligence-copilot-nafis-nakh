@@ -1,6 +1,9 @@
 """HTTP contract for the global sales-assistant chat."""
+import json
+
 from pydantic import BaseModel, Field
 from fastapi import APIRouter
+from fastapi.responses import StreamingResponse
 
 from backend.app.chat_service import sales_assistant_service
 
@@ -23,6 +26,19 @@ router = APIRouter(tags=["AI Sales Assistant"])
 def chat(request: ChatRequest) -> ChatResponse:
     answer, sources, session_id = sales_assistant_service.answer(request.message.strip(), request.session_id)
     return ChatResponse(answer=answer, sources=sources, session_id=session_id)
+
+
+@router.post("/chat/stream", summary="Stream an answer from the data-grounded sales assistant")
+def stream_chat(request: ChatRequest) -> StreamingResponse:
+    def events():
+        for event in sales_assistant_service.stream_answer(request.message.strip(), request.session_id):
+            yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
+
+    return StreamingResponse(
+        events(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 @router.delete("/chat/sessions/{session_id}", status_code=204, summary="Clear a sales-assistant conversation")

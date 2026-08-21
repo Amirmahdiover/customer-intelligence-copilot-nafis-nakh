@@ -46,6 +46,7 @@ export interface DashboardPriorityCustomer {
   decision_score: number | null
   decision_reason: string | null
   decision_evidence: string[]
+  main_signal: string | null
   signals: DashboardSignal[]
   interpretation: string
   recommended_action: string

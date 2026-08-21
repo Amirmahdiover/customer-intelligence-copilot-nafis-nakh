@@ -1,7 +1,7 @@
 import { Bot, LoaderCircle, Send, Sparkles, X } from 'lucide-react'
 import { FormEvent, useEffect, useRef, useState } from 'react'
 
-import { apiPost } from '@/lib/api'
+import { apiUrl } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
@@ -10,8 +10,6 @@ type ChatMessage = {
   content: string
   sources?: string[]
 }
-
-type ChatResponse = { answer: string; sources: string[]; session_id: string }
 
 const START_MESSAGE: ChatMessage = {
   role: 'assistant',
@@ -35,14 +33,62 @@ export function SalesAssistantChat() {
     const message = input.trim()
     if (!message || isLoading) return
 
-    setMessages((current) => [...current, { role: 'user', content: message }])
+    const assistantMessageIndex = messages.length + 1
+    setMessages((current) => [...current, { role: 'user', content: message }, { role: 'assistant', content: '' }])
     setInput('')
     setIsLoading(true)
     try {
-      const response = await apiPost<ChatResponse>('/chat', { message, session_id: sessionId })
-      setSessionId(response.session_id)
-      setMessages((current) => [...current, { role: 'assistant', content: response.answer, sources: response.sources }])
+      const response = await fetch(apiUrl('/chat/stream'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
+        body: JSON.stringify({ message, session_id: sessionId }),
+      })
+      if (!response.ok || !response.body) throw new Error('Streaming response is unavailable')
+
+      const reader = response.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+      let streamedAnswer = ''
+      let sources: string[] | undefined
+      let lastUiUpdate = 0
+      const updateAssistant = () => setMessages((current) => current.map((item, index) => (
+        index === assistantMessageIndex ? { ...item, content: streamedAnswer, sources } : item
+      )))
+
+      while (true) {
+        const { value, done } = await reader.read()
+        if (done) break
+        buffer += decoder.decode(value, { stream: true })
+        const events = buffer.split('\n\n')
+        buffer = events.pop() ?? ''
+        for (const eventChunk of events) {
+          const data = eventChunk.split('\n').find((line) => line.startsWith('data:'))?.slice(5).trim()
+          if (!data) continue
+          const payload = JSON.parse(data) as { type: string; delta?: string; sources?: string[]; session_id?: string }
+          if (payload.type === 'meta') {
+            if (payload.session_id) setSessionId(payload.session_id)
+            sources = payload.sources
+          }
+          if (payload.type === 'delta' && payload.delta) {
+            streamedAnswer += payload.delta
+            if (performance.now() - lastUiUpdate >= 50) {
+              lastUiUpdate = performance.now()
+              updateAssistant()
+            }
+          }
+          if (payload.type === 'done') {
+            sources = payload.sources ?? sources
+            updateAssistant()
+          }
+        }
+      }
+      updateAssistant()
     } catch {
+      setMessages((current) => current.map((item, index) => index === assistantMessageIndex ? {
+        ...item,
+        content: '\u067e\u0627\u0633\u062e\u200c\u06af\u0648\u06cc\u06cc \u062f\u0631 \u062d\u0627\u0644 \u062d\u0627\u0636\u0631 \u062f\u0631 \u062f\u0633\u062a\u0631\u0633 \u0646\u06cc\u0633\u062a. \u0644\u0637\u0641\u0627\u064b \u062f\u0648\u0628\u0627\u0631\u0647 \u062a\u0644\u0627\u0634 \u06a9\u0646\u06cc\u062f.',
+      } : item))
+      return
       setMessages((current) => [...current, {
         role: 'assistant',
         content: 'پاسخ‌گویی در حال حاضر در دسترس نیست. لطفاً دوباره تلاش کنید.',

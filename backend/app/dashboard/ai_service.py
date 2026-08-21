@@ -193,7 +193,8 @@ class DashboardAIService:
             key: customer.get(key)
             for key in (
                 "customer_id", "decision_category", "business_value", "decision_reason",
-                "decision_evidence", "recommended_action", "latest_crm_next_action", "crm_urgency",
+                "decision_evidence", "main_signal", "recommended_action", "latest_crm_next_action", "crm_urgency",
+                "customer_profile", "crm_history", "complaints", "financial_status", "not_due_invoices",
             )
         }
         payload["signals"] = [

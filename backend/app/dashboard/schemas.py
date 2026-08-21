@@ -48,6 +48,7 @@ class DashboardPriorityCustomer(BaseModel):
     decision_score: int | None = None
     decision_reason: str | None = None
     decision_evidence: list[str] = Field(default_factory=list)
+    main_signal: str | None = None
     signals: list[DashboardSignal]
     interpretation: str
     recommended_action: str
