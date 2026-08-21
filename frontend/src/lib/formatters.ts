@@ -32,6 +32,22 @@ export function formatNumber(value: number): string {
   return value.toLocaleString('fa-IR')
 }
 
+/** Compact Persian currency for customer-detail captions. */
+export function formatTomanCompact(value: number): string {
+  if (value >= 1_000_000_000) {
+    const billions = value / 1_000_000_000
+    const text =
+      billions >= 10
+        ? billions.toFixed(0)
+        : billions.toFixed(1).replace(/\.0$/, '')
+    return `${Number(text).toLocaleString('fa-IR')} میلیارد تومان`
+  }
+  if (value >= 1_000_000) {
+    return `${Math.round(value / 1_000_000).toLocaleString('fa-IR')} میلیون تومان`
+  }
+  return `${Math.round(value).toLocaleString('fa-IR')} تومان`
+}
+
 export function formatRelativeDate(dateStr: string): string {
   const date = new Date(dateStr)
   const now = new Date(SNAPSHOT_DATE)

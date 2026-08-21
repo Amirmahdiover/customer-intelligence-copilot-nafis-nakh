@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { AlertCircle, CheckCircle2, ClipboardList, Search } from 'lucide-react'
+import { AlertCircle, ClipboardList, Handshake, Search } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { NegotiationScoreCard } from '@/components/crm/customer360/NegotiationScoreCard'
 import { useComplaints } from '@/hooks/crm/useCrmQueries'
 import { formatComplaintSeverity, formatComplaintStatus } from '@/lib/complaintDisplay'
 import { formatNumber } from '@/lib/formatters'
@@ -47,6 +48,7 @@ export function ComplaintsPage() {
   const [search, setSearch] = useState('')
   const [severity, setSeverity] = useState('all')
   const [status, setStatus] = useState('all')
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null)
 
   const filteredComplaints = useMemo(() => {
     const query = search.trim().toLowerCase()
@@ -59,7 +61,6 @@ export function ComplaintsPage() {
 
   const openCount = complaints.filter(isOpen).length
   const criticalCount = complaints.filter((complaint) => complaint.severity === 'بحرانی' || complaint.severity === 'Critical').length
-  const resolvedCount = complaints.length - openCount
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-6 pt-14 lg:px-8 lg:pt-6">
@@ -72,12 +73,24 @@ export function ComplaintsPage() {
         <div className="rounded-md border bg-card px-3 py-2 text-left text-xs text-muted-foreground">مبنای داده: snapshot 2022-06-30</div>
       </header>
 
-      <div className="mb-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mb-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <StatCard label="کل شکایت‌ها" value={complaints.length} icon={ClipboardList} tone="bg-sky-50 text-sky-700" />
         <StatCard label="در انتظار رسیدگی" value={openCount} icon={AlertCircle} tone="bg-amber-50 text-amber-700" />
-        <StatCard label="حل‌شده یا بسته" value={resolvedCount} icon={CheckCircle2} tone="bg-emerald-50 text-emerald-700" />
         <StatCard label="موارد بحرانی" value={criticalCount} icon={AlertCircle} tone="bg-red-50 text-red-700" />
       </div>
+
+      {selectedCustomerId && (
+        <section className="mb-5">
+          <div className="mb-2 flex items-center justify-between gap-3">
+            <div>
+              <h2 className="text-base font-bold text-card-foreground">آمادگی مذاکره برای مشتری {selectedCustomerId}</h2>
+              <p className="mt-1 text-xs text-muted-foreground">امتیاز مذاکره بر اساس سوابق شکایت، وصول، حفظ مشتری و نقدینگی</p>
+            </div>
+            <Button variant="ghost" size="sm" onClick={() => setSelectedCustomerId(null)}>بستن تحلیل</Button>
+          </div>
+          <NegotiationScoreCard customerId={selectedCustomerId} />
+        </section>
+      )}
 
       <Card>
         <CardHeader className="border-b">
@@ -110,8 +123,8 @@ export function ComplaintsPage() {
           {!isLoading && !isError && filteredComplaints.length === 0 && <p className="py-12 text-center text-sm text-muted-foreground">موردی با این فیلتر پیدا نشد.</p>}
           {!isLoading && !isError && filteredComplaints.length > 0 && (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[760px] text-right text-sm">
-                <thead><tr className="border-b text-xs text-muted-foreground"><th className="pb-3 pr-2 font-medium">مشتری</th><th className="pb-3 font-medium">شرح شکایت</th><th className="pb-3 font-medium">شدت</th><th className="pb-3 font-medium">وضعیت</th><th className="pb-3 font-medium">تاریخ ثبت</th><th className="pb-3 font-medium">رسیدگی</th></tr></thead>
+              <table className="w-full min-w-[820px] text-right text-sm">
+                <thead><tr className="border-b text-xs text-muted-foreground"><th className="pb-3 pr-2 font-medium">مشتری</th><th className="pb-3 font-medium">شرح شکایت</th><th className="pb-3 font-medium">شدت</th><th className="pb-3 font-medium">وضعیت</th><th className="pb-3 font-medium">تاریخ ثبت</th><th className="pb-3 font-medium">رسیدگی</th><th className="pb-3 font-medium">تحلیل</th></tr></thead>
                 <tbody>
                   {filteredComplaints.map((complaint) => (
                     <tr key={complaint.id} className="border-b last:border-0 hover:bg-muted/35">
@@ -121,6 +134,7 @@ export function ComplaintsPage() {
                       <td className="py-3 align-top"><Badge variant="outline" className={statusClass(complaint)}>{formatComplaintStatus(complaint.complaint_status)}</Badge></td>
                       <td className="py-3 align-top text-xs text-muted-foreground" dir="ltr">{complaint.created_at || '—'}</td>
                       <td className="max-w-[16rem] py-3 align-top text-xs leading-5 text-muted-foreground">{complaint.text_resolution || 'هنوز نتیجه‌ای ثبت نشده'}</td>
+                      <td className="py-3 align-top"><Button variant="outline" size="sm" onClick={() => setSelectedCustomerId(complaint.customerId)}><Handshake size={14} />مذاکره</Button></td>
                     </tr>
                   ))}
                 </tbody>

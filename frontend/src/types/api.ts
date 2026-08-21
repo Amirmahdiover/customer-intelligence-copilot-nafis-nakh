@@ -79,6 +79,10 @@ export interface ApiCustomerProfile extends ApiCustomerSummary {
 
 export interface ApiKpiResponse {
   Customer_ID: string
+  Customer_Segment?: ApiCustomerSegment | null
+  Location_ID?: string | null
+  Sales_Rep_ID?: string | null
+  Credit_Limit?: number | null
   Recency_Days?: number | null
   Days_Since_Last_Order?: number | null
   Frequency_Orders?: number | null

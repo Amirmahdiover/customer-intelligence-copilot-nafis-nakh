@@ -29,6 +29,7 @@ import { cn } from '@/lib/utils'
 
 interface FinancialSectionProps {
   customerId: string
+  embedded?: boolean
 }
 
 /** Days remaining until the due date, measured from the analytics snapshot. */
@@ -48,7 +49,7 @@ function formatDaysUntilDue(dueDate: string | null): string {
   return Number.isNaN(days) ? '—' : formatDayCount(days)
 }
 
-export function FinancialSection({ customerId }: FinancialSectionProps) {
+export function FinancialSection({ customerId, embedded = false }: FinancialSectionProps) {
   const [showDetail, setShowDetail] = useState(false)
   const {
     data: financial,
@@ -84,27 +85,26 @@ export function FinancialSection({ customerId }: FinancialSectionProps) {
   const hasInvoices = financial.notDueInvoiceCount > 0
   const hasChecks = financial.returnedCheckCount > 0
 
-  return (
-    <Card className="[--card-spacing:--spacing(4)]">
-      <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
-        <CardTitle>وضعیت مالی</CardTitle>
-        <div className="flex flex-wrap gap-2">
-          {financial.hasReturnedCheck && (
-            <Badge variant="destructive" className="gap-1.5">
-              <AlertTriangle size={14} />
-              چک برگشتی
-            </Badge>
-          )}
-          {(financial.creditStatus === 'critical' ||
-            financial.creditStatus === 'over_limit') && (
-            <StatusBadge
-              label={CREDIT_STATUS_LABELS[financial.creditStatus]}
-              variantKey={creditVariant}
-            />
-          )}
-        </div>
-      </CardHeader>
-      <CardContent>
+  const badges = (
+    <div className="flex flex-wrap gap-2">
+      {financial.hasReturnedCheck && (
+        <Badge variant="destructive" className="gap-1.5">
+          <AlertTriangle size={14} />
+          چک برگشتی
+        </Badge>
+      )}
+      {(financial.creditStatus === 'critical' ||
+        financial.creditStatus === 'over_limit') && (
+        <StatusBadge
+          label={CREDIT_STATUS_LABELS[financial.creditStatus]}
+          variantKey={creditVariant}
+        />
+      )}
+    </div>
+  )
+
+  const body = (
+    <>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
           <button
             type="button"
@@ -270,7 +270,25 @@ export function FinancialSection({ customerId }: FinancialSectionProps) {
             </div>
           </div>
         )}
-      </CardContent>
+    </>
+  )
+
+  if (embedded) {
+    return (
+      <div className="space-y-3">
+        {badges}
+        {body}
+      </div>
+    )
+  }
+
+  return (
+    <Card className="[--card-spacing:--spacing(4)]">
+      <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
+        <CardTitle>وضعیت مالی</CardTitle>
+        {badges}
+      </CardHeader>
+      <CardContent>{body}</CardContent>
     </Card>
   )
 }

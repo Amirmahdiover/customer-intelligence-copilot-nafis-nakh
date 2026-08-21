@@ -1,6 +1,8 @@
 const API_BASE =
   import.meta.env.VITE_API_URL ||
-  'https://customer-intelligence-copilot-nafis-nakh.onrender.com'
+  (import.meta.env.DEV
+    ? '/api'
+    : 'https://customer-intelligence-copilot-nafis-nakh.onrender.com')
 
 export function apiUrl(path: string): string {
   return new URL(`${API_BASE}${path}`, window.location.origin).toString()
@@ -16,14 +18,21 @@ export class ApiError extends Error {
   }
 }
 
+function buildApiUrl(path: string): URL {
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`
+  const href = `${API_BASE.replace(/\/$/, '')}${normalizedPath}`
+
+  // Relative bases like `/api` need an origin; absolute URLs do not.
+  return href.startsWith('http')
+    ? new URL(href)
+    : new URL(href, window.location.origin)
+}
+
 export async function apiFetch<T>(
   path: string,
   params?: Record<string, string | number | undefined>,
 ): Promise<T> {
-  // Supplying the page origin makes a relative development URL such as
-  // `/api` work through Vite's proxy, while absolute production URLs keep
-  // their existing behavior.
-  const url = new URL(apiUrl(path))
+  const url = buildApiUrl(path)
 
   if (params) {
     for (const [key, value] of Object.entries(params)) {
@@ -55,7 +64,7 @@ export async function apiFetch<T>(
 }
 
 export async function apiPost<T>(path: string, body: unknown): Promise<T> {
-  const url = new URL(apiUrl(path))
+  const url = buildApiUrl(path)
   const response = await fetch(url.toString(), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },

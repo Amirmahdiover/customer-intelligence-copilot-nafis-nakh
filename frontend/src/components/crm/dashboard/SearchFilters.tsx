@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/select'
 import type { CustomerFilters } from '@/types/crm'
 import {
+  ACCOUNT_STATUS_LABELS,
   CUSTOMER_STATUS_LABELS,
   ORDER_STATUS_LABELS,
   PAYMENT_STATUS_LABELS,
@@ -30,6 +31,7 @@ export function SearchFilters({ filters, onChange }: SearchFiltersProps) {
   const hasFilters =
     filters.search ||
     (filters.status && filters.status !== 'all') ||
+    (filters.accountStatus && filters.accountStatus !== 'all') ||
     (filters.risk && filters.risk !== 'all') ||
     (filters.valueTier && filters.valueTier !== 'all') ||
     (filters.paymentStatus && filters.paymentStatus !== 'all') ||
@@ -61,6 +63,25 @@ export function SearchFilters({ filters, onChange }: SearchFiltersProps) {
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
+        <Select
+          value={filters.accountStatus ?? 'all'}
+          onValueChange={(value) =>
+            update({ accountStatus: value as CustomerFilters['accountStatus'] })
+          }
+        >
+          <SelectTrigger className="w-[150px]">
+            <SelectValue placeholder="وضعیت حساب" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">وضعیت حساب</SelectItem>
+            {Object.entries(ACCOUNT_STATUS_LABELS).map(([k, v]) => (
+              <SelectItem key={k} value={k}>
+                {v}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
         <Select
           value={filters.status ?? 'all'}
           onValueChange={(value) =>

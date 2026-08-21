@@ -68,6 +68,10 @@ export interface Customer {
   accountStatus: AccountStatus
   email: string
   phone: string
+  segment?: string | null
+  salesRepId?: string | null
+  locationId?: string | null
+  creditLimit?: number | null
   status: CustomerStatus
   totalRevenue: number
   totalProfit: number
@@ -95,6 +99,16 @@ export interface Customer {
   walletShareAvgPct?: number | null
   /** The YYYY-MM the latest wallet share belongs to. */
   walletShareAsOfMonth?: string | null
+  /** Net sales in the 365 days ending on the analytics snapshot. */
+  annualSalesT12m?: number | null
+  /** Realized margin percentage (0-1). */
+  marginPct?: number | null
+  /** Share of collections marked as bounced check (0-1). */
+  bouncedCheckRate?: number | null
+  /** Mean collection delay in days. */
+  avgPaymentDelayDays?: number | null
+  /** Worst single collection delay in days. */
+  maxPaymentDelayDays?: number | null
 }
 
 export interface Order {
@@ -250,10 +264,12 @@ export interface CrmOverview {
 export interface CustomerFilters {
   search?: string
   status?: CustomerStatus | 'all'
+  accountStatus?: Exclude<AccountStatus, ''> | 'all'
   risk?: RiskLevel | 'all'
   valueTier?: ValueTier | 'all'
   paymentStatus?: PaymentStatus | 'all'
   orderStatus?: OrderStatus | 'all'
+  /** Left undefined the list keeps its stable shuffled order. */
   sortField?: SortField
   sortDirection?: SortDirection
   page?: number

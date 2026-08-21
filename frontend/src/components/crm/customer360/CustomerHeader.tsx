@@ -57,9 +57,12 @@ export function CustomerHeader({ customerId }: CustomerHeaderProps) {
                 />
               </div>
               <p className="mt-0.5 text-sm text-muted-foreground">
-                {customer.email !== '—' && customer.email}
-                {customer.email !== '—' && customer.phone !== '—' && ' · '}
-                {customer.phone !== '—' && customer.phone}
+                {[
+                  customer.salesRepId ? `نماینده: ${customer.salesRepId}` : null,
+                  customer.locationId ? `موقعیت: ${customer.locationId}` : null,
+                ]
+                  .filter(Boolean)
+                  .join(' · ') || '—'}
               </p>
               <div className="mt-2 flex flex-wrap items-center gap-3">
                 {customer.accountStatus && (

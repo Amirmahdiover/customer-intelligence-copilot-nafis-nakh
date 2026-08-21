@@ -198,6 +198,9 @@ class DashboardService:
             1 for record in self._records() if record.get("Customer_Status") == "فعال"
         )
         revenue_at_risk = sum(model["annual_sales_trailing_12m"] for model in at_risk)
+        trailing_12m_revenue = sum(
+            _number(record.get("Annual_Sales_Trailing12M")) for record in self._records()
+        )
 
         return DashboardOverviewResponse(
             snapshot_date=SNAPSHOT_DATE,
@@ -207,6 +210,11 @@ class DashboardService:
                 DashboardMetric(key="revenue_at_risk", label="Revenue At Risk", value=round(revenue_at_risk, 2)),
                 DashboardMetric(key="growth_opportunities", label="Growth Opportunities", value=len(opportunities)),
                 DashboardMetric(key="priority_actions", label="Priority Actions", value=len(priority_actions)),
+                DashboardMetric(
+                    key="trailing_12m_revenue",
+                    label="Trailing 12M Revenue",
+                    value=round(trailing_12m_revenue, 2),
+                ),
             ],
             risk_distribution=risk_distribution,
         )
