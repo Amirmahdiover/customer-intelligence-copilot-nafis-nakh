@@ -115,6 +115,20 @@ class DashboardAIExplanationResponse(BaseModel):
     cached: bool
 
 
+class CustomerAIActionResponse(BaseModel):
+    """AI-narrated operational action for one customer. ``category``/``priority``
+    come from a deterministic rule-based baseline the AI text never overrides."""
+
+    customer_id: str
+    category: str
+    category_label: str
+    priority: Literal["low", "medium", "high"]
+    action: str
+    reason: str
+    source: Literal["openai", "fallback"]
+    cached: bool
+
+
 class DashboardAIExecutiveSummaryResponse(BaseModel):
     """Optional AI interpretation of the current deterministic Dashboard snapshot."""
 

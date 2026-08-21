@@ -145,6 +145,19 @@ export interface ApiActionResponse {
   method: 'rule_based'
 }
 
+/** AI-narrated operational action. `category`/`priority` come from a
+ * deterministic rule-based baseline the AI text never overrides. */
+export interface ApiCustomerAIActionResponse {
+  customer_id: string
+  category: string
+  category_label: string
+  priority: 'low' | 'medium' | 'high'
+  action: string
+  reason: string
+  source: 'openai' | 'fallback'
+  cached: boolean
+}
+
 export interface ApiOfferRecommendation {
   Offer_Type: string
   Offer_Reason: string

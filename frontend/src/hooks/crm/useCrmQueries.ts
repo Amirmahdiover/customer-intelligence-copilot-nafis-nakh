@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import {
   getCrmOverview,
   getCustomerActions,
+  getCustomerAIAction,
   getCustomerBestOffer,
   getCustomerById,
   getCustomerChurn,
@@ -119,6 +120,18 @@ export function useCustomerActions(id: string) {
     queryKey: ['crm', 'actions', id],
     queryFn: () => getCustomerActions(id),
     enabled: !!id,
+  })
+}
+
+/** Independent, cached (15min) AI narration — loads separately from the
+ * rule-based action so it never blocks the rest of the customer panel. */
+export function useCustomerAIAction(id: string) {
+  return useQuery({
+    queryKey: ['crm', 'ai-action', id],
+    queryFn: () => getCustomerAIAction(id),
+    enabled: !!id,
+    staleTime: 15 * 60 * 1000,
+    retry: 1,
   })
 }
 

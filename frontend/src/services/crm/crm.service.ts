@@ -24,6 +24,7 @@ import type {
   ApiComplaintsCountResponse,
   ApiCrmInteractionsListResponse,
   ApiCrmLatestResponse,
+  ApiCustomerAIActionResponse,
   ApiCustomerComplaintsResponse,
   ApiCustomerFinancialResponse,
   ApiCustomerHeaderListResponse,
@@ -56,13 +57,24 @@ import type {
   RiskLevel,
 } from '@/types/crm'
 
-const RISK_ORDER: Record<RiskLevel, number> = { low: 1, medium: 2, high: 3 }
+const RISK_ORDER: Record<RiskLevel, number> = {
+  low: 1,
+  medium: 2,
+  high: 3,
+}
 
+/**
+ * دریافت لیست کامل مشتریان از بک‌اند
+ */
 async function fetchAllCustomerHeaders(): Promise<string[]> {
   const response = await apiFetch<ApiCustomerHeaderListResponse>('/customers')
+
   return response.customers.map((item) => item.customer_info)
 }
 
+/**
+ * فیلتر و مرتب‌سازی سمت کلاینت
+ */
 function applyClientFilters(
   customers: Customer[],
   filters: CustomerFilters,
@@ -71,6 +83,7 @@ function applyClientFilters(
 
   if (filters.search) {
     const q = filters.search.toLowerCase().trim()
+
     result = result.filter(
       (c) =>
         c.name.toLowerCase().includes(q) ||
@@ -109,14 +122,19 @@ function applyClientFilters(
     switch (sortField) {
       case 'revenue':
         return (a.totalRevenue - b.totalRevenue) * dir
+
       case 'lastOrder':
         return (
           (new Date(a.lastOrderDate).getTime() -
             new Date(b.lastOrderDate).getTime()) *
           dir
         )
+
       case 'risk':
-        return (RISK_ORDER[a.risk.overall] - RISK_ORDER[b.risk.overall]) * dir
+        return (
+          (RISK_ORDER[a.risk.overall] - RISK_ORDER[b.risk.overall]) * dir
+        )
+
       case 'name':
       default:
         return a.code.localeCompare(b.code) * dir
@@ -126,6 +144,9 @@ function applyClientFilters(
   return result
 }
 
+/**
+ * Pagination سمت کلاینت
+ */
 function paginate<T>(
   items: T[],
   page: number,
@@ -134,6 +155,7 @@ function paginate<T>(
   const total = items.length
   const totalPages = Math.max(1, Math.ceil(total / limit))
   const start = (page - 1) * limit
+
   return {
     data: items.slice(start, start + limit),
     total,
@@ -143,40 +165,59 @@ function paginate<T>(
   }
 }
 
+/**
+ * ============================================================
+ * CRM OVERVIEW
+ * ============================================================
+ *
+ * مهم:
+ * قبلاً اینجا اعداد به صورت دستی محاسبه می‌شدند و بعضی فیلدها
+ * مثل totalRevenue و outstandingPayments برابر 0 بودند.
+ *
+ * بک‌اند جدید endpoint واقعی زیر را دارد:
+ *
+ * GET /dashboard/overview
+ *
+ * بنابراین مستقیماً از بک‌اند می‌خوانیم.
+ */
 export async function getCrmOverview(): Promise<CrmOverview> {
-  const headers = await fetchAllCustomerHeaders()
-  const parsed = headers.map(parseCustomerInfo)
+  const response = await apiFetch<CrmOverview>('/dashboard/overview')
 
-  const totalCustomers = parsed.length
-  const activeCustomers = parsed.filter((p) => p.status === 'فعال').length
-  const atRiskCustomers = parsed.filter((p) => p.status === 'غیرفعال').length
-
-  return {
-    totalCustomers,
-    newCustomersThisMonth: Math.round(totalCustomers * 0.05),
-    activeCustomers,
-    atRiskCustomers,
-    totalRevenue: 0,
-    outstandingPayments: 0,
-  }
+  return response
 }
 
-async function fetchAllCustomerValues(): Promise<Map<string, ApiCustomerValueItem>> {
+/**
+ * ============================================================
+ * CUSTOMER VALUES
+ * ============================================================
+ */
+async function fetchAllCustomerValues(): Promise<
+  Map<string, ApiCustomerValueItem>
+> {
   try {
     const response = await apiFetch<ApiCustomerValueListResponse>(
       '/value-segments/customers',
     )
-    return new Map(response.customers.map((item) => [item.customer_id, item]))
+
+    return new Map(
+      response.customers.map((item) => [item.customer_id, item]),
+    )
   } catch {
     return new Map()
   }
 }
 
+/**
+ * ============================================================
+ * CUSTOMERS
+ * ============================================================
+ */
 export async function getCustomers(
   filters: CustomerFilters = {},
 ): Promise<PaginatedResult<Customer>> {
   const page = filters.page ?? 1
   const limit = filters.limit ?? 10
+
   const [headers, values] = await Promise.all([
     fetchAllCustomerHeaders(),
     fetchAllCustomerValues(),
@@ -184,27 +225,39 @@ export async function getCustomers(
 
   const baseCustomers = headers.map((info) => {
     const customer = mapCustomerInfoToCustomer(info)
+
     return applyCustomerValue(customer, values.get(customer.id))
   })
+
   const filtered = applyClientFilters(baseCustomers, filters)
+
   return paginate(filtered, page, limit)
 }
 
+/**
+ * ============================================================
+ * CUSTOMER DETAIL
+ * ============================================================
+ */
 export async function getCustomerById(id: string): Promise<Customer> {
+  const encodedId = encodeURIComponent(id)
+
   const header = await apiFetch<ApiCustomerHeaderResponse>(
-    `/customers/${encodeURIComponent(id)}`,
+    `/customers/${encodedId}`,
   )
 
   const [kpis, risk, value] = await Promise.all([
-    apiFetch<ApiKpiResponse>(`/customers/${encodeURIComponent(id)}/kpis`).catch(
+    apiFetch<ApiKpiResponse>(`/customers/${encodedId}/kpis`).catch(
       () => undefined,
     ),
-    apiFetch<ApiRiskResponse>(`/customers/${encodeURIComponent(id)}/risk`).catch(
+
+    apiFetch<ApiRiskResponse>(`/customers/${encodedId}/risk`).catch(
       () => undefined,
     ),
-    apiFetch<ApiCustomerValueItem>(
-      `/customers/${encodeURIComponent(id)}/value`,
-    ).catch(() => undefined),
+
+    apiFetch<ApiCustomerValueItem>(`/customers/${encodedId}/value`).catch(
+      () => undefined,
+    ),
   ])
 
   return applyCustomerValue(
@@ -213,125 +266,255 @@ export async function getCustomerById(id: string): Promise<Customer> {
   )
 }
 
+/**
+ * ============================================================
+ * CUSTOMER ORDERS
+ * ============================================================
+ */
 export async function getCustomerOrders(id: string): Promise<Order[]> {
+  const encodedId = encodeURIComponent(id)
+
   const kpis = await apiFetch<ApiKpiResponse>(
-    `/customers/${encodeURIComponent(id)}/kpis`,
+    `/customers/${encodedId}/kpis`,
   ).catch(() => undefined)
 
   const header = await apiFetch<ApiCustomerHeaderResponse>(
-    `/customers/${encodeURIComponent(id)}`,
-  ).catch(() => ({ customer_info: `${id},,` }))
+    `/customers/${encodedId}`,
+  ).catch(() => ({
+    customer_info: `${id},,`,
+  }))
 
   const profile = buildProfileFromParts(header.customer_info, kpis)
+
   const synthetic = buildSyntheticOrder(profile)
+
   return synthetic ? [synthetic] : []
 }
 
+/**
+ * ============================================================
+ * COMPLAINT COUNT
+ * ============================================================
+ */
 export async function getCustomerComplaintsCount(
   id: string,
 ): Promise<number> {
   const response = await apiFetch<ApiComplaintsCountResponse>(
     `/customers/${encodeURIComponent(id)}/complaints/count`,
   )
+
   return response.complaints_count
 }
 
-export async function getCustomerComplaints(id: string): Promise<Complaint[]> {
+/**
+ * ============================================================
+ * COMPLAINTS
+ * ============================================================
+ */
+export async function getCustomerComplaints(
+  id: string,
+): Promise<Complaint[]> {
   const response = await apiFetch<ApiCustomerComplaintsResponse>(
     `/customers/${encodeURIComponent(id)}/complaints`,
   )
+
   return response.complaints.map((record, index) =>
     mapComplaintDetail(response.customer_id, record, index),
   )
 }
 
+/**
+ * ============================================================
+ * CRM LATEST
+ * ============================================================
+ */
 export async function getCustomerCrm(id: string): Promise<CrmLatest> {
   const response = await apiFetch<ApiCrmLatestResponse>(
     `/customers/${encodeURIComponent(id)}/crm`,
   )
+
   return mapCrmLatest(response)
 }
 
+/**
+ * ============================================================
+ * CRM INTERACTIONS
+ * ============================================================
+ */
 export async function getCustomerCrmInteractions(
   id: string,
 ): Promise<CrmInteraction[]> {
   const response = await apiFetch<ApiCrmInteractionsListResponse>(
     `/customers/${encodeURIComponent(id)}/crm/interactions`,
   )
+
   return response.interactions.map(mapCrmInteraction)
 }
 
-export async function getCustomerFinancial(id: string): Promise<CustomerFinancial> {
+/**
+ * ============================================================
+ * FINANCIAL
+ * ============================================================
+ */
+export async function getCustomerFinancial(
+  id: string,
+): Promise<CustomerFinancial> {
   const response = await apiFetch<ApiCustomerFinancialResponse>(
     `/customers/${encodeURIComponent(id)}/financial`,
   )
+
   return mapCustomerFinancial(response)
 }
 
+/**
+ * ============================================================
+ * NOT DUE INVOICES
+ * ============================================================
+ */
 export async function getCustomerNotDueInvoices(
   id: string,
 ): Promise<NotDueInvoice[]> {
   const response = await apiFetch<ApiNotDueInvoicesResponse>(
     `/customers/${encodeURIComponent(id)}/financial/not-due-invoices`,
   )
+
   return mapNotDueInvoices(response)
 }
 
+/**
+ * ============================================================
+ * RETURNED CHECKS
+ * ============================================================
+ */
 export async function getCustomerReturnedChecks(
   id: string,
 ): Promise<ReturnedCheck[]> {
   const response = await apiFetch<ApiReturnedChecksResponse>(
     `/customers/${encodeURIComponent(id)}/financial/returned-checks`,
   )
+
   return mapReturnedChecks(response)
 }
 
-export async function getCustomerInsights(id: string): Promise<Insight[]> {
+/**
+ * ============================================================
+ * CUSTOMER INSIGHTS
+ * ============================================================
+ */
+export async function getCustomerInsights(
+  id: string,
+): Promise<Insight[]> {
+  const encodedId = encodeURIComponent(id)
+
   const [header, kpis, risk] = await Promise.all([
-    apiFetch<ApiCustomerHeaderResponse>(`/customers/${encodeURIComponent(id)}`),
-    apiFetch<ApiKpiResponse>(`/customers/${encodeURIComponent(id)}/kpis`).catch(
-      () => undefined,
+    apiFetch<ApiCustomerHeaderResponse>(
+      `/customers/${encodedId}`,
     ),
-    apiFetch<ApiRiskResponse>(`/customers/${encodeURIComponent(id)}/risk`).catch(
-      () => undefined,
-    ),
+
+    apiFetch<ApiKpiResponse>(
+      `/customers/${encodedId}/kpis`,
+    ).catch(() => undefined),
+
+    apiFetch<ApiRiskResponse>(
+      `/customers/${encodedId}/risk`,
+    ).catch(() => undefined),
   ])
 
-  const profile = buildProfileFromParts(header.customer_info, kpis, risk)
+  const profile = buildProfileFromParts(
+    header.customer_info,
+    kpis,
+    risk,
+  )
+
   return buildInsights(profile, risk)
 }
 
+/**
+ * ============================================================
+ * CUSTOMER ACTIONS
+ * ============================================================
+ */
 export async function getCustomerActions(
   id: string,
 ): Promise<RecommendedAction[]> {
+  const encodedId = encodeURIComponent(id)
+
   const [action, header, kpis] = await Promise.all([
-    apiFetch<ApiActionResponse>(`/customers/${encodeURIComponent(id)}/actions`),
-    apiFetch<ApiCustomerHeaderResponse>(`/customers/${encodeURIComponent(id)}`).catch(
-      () => ({ customer_info: `${id},,` }),
+    apiFetch<ApiActionResponse>(
+      `/customers/${encodedId}/actions`,
     ),
-    apiFetch<ApiKpiResponse>(`/customers/${encodeURIComponent(id)}/kpis`).catch(
-      () => undefined,
-    ),
+
+    apiFetch<ApiCustomerHeaderResponse>(
+      `/customers/${encodedId}`,
+    ).catch(() => ({
+      customer_info: `${id},,`,
+    })),
+
+    apiFetch<ApiKpiResponse>(
+      `/customers/${encodedId}/kpis`,
+    ).catch(() => undefined),
   ])
 
-  const profile = buildProfileFromParts(header.customer_info, kpis)
+  const profile = buildProfileFromParts(
+    header.customer_info,
+    kpis,
+  )
+
   return mapAction(action, profile)
 }
 
-export async function getCustomerBestOffer(id: string): Promise<BestOffer> {
+/**
+ * ============================================================
+ * CUSTOMER AI ACTION
+ * ============================================================
+ *
+ * Server-side OpenAI narration of a deterministic rule-based baseline
+ * (risk, RFM, purchase status, debt, tickets). The browser never receives
+ * the OpenAI key; the backend caches by a hash of the input factors.
+ */
+export async function getCustomerAIAction(
+  id: string,
+): Promise<ApiCustomerAIActionResponse> {
+  return apiFetch<ApiCustomerAIActionResponse>(
+    `/dashboard/ai/customer-action/${encodeURIComponent(id)}`,
+  )
+}
+
+/**
+ * ============================================================
+ * BEST OFFER
+ * ============================================================
+ */
+export async function getCustomerBestOffer(
+  id: string,
+): Promise<BestOffer> {
   const response = await apiFetch<ApiBestOfferResponse>(
     `/customers/${encodeURIComponent(id)}/offers/best`,
   )
+
   return mapBestOffer(response)
 }
 
-export async function getCustomerChurn(id: string): Promise<CustomerChurn> {
+/**
+ * ============================================================
+ * CHURN
+ * ============================================================
+ */
+export async function getCustomerChurn(
+  id: string,
+): Promise<CustomerChurn> {
   const response = await apiFetch<ApiChurnResponse>(
     `/customers/${encodeURIComponent(id)}/churn`,
   )
+
   return mapChurn(response)
 }
 
+/**
+ * ============================================================
+ * NEGOTIATION SCORE
+ * ============================================================
+ */
 export async function getCustomerNegotiationScore(
   id: string,
 ): Promise<NegotiationScore> {
@@ -341,16 +524,26 @@ export async function getCustomerNegotiationScore(
   return mapNegotiationScore(response)
 }
 
+/**
+ * ============================================================
+ * GLOBAL INSIGHTS
+ * ============================================================
+ */
 export async function getGlobalInsights(): Promise<Insight[]> {
   const headers = await fetchAllCustomerHeaders()
-  const inactive = headers
-    .map(parseCustomerInfo)
+
+  const parsed = headers.map(parseCustomerInfo)
+
+  const inactive = parsed
     .filter((p) => p.status === 'غیرفعال')
     .slice(0, 3)
 
-  const segmentC = headers
-    .map(parseCustomerInfo)
-    .filter((p) => p.segment === 'C' && p.status === 'فعال')
+  const segmentC = parsed
+    .filter(
+      (p) =>
+        p.segment === 'C' &&
+        p.status === 'فعال',
+    )
     .slice(0, 3)
 
   const insights: Insight[] = []
@@ -360,7 +553,9 @@ export async function getGlobalInsights(): Promise<Insight[]> {
       id: `global-inactive-${item.customerId}`,
       customerId: item.customerId,
       title: 'مشتری غیرفعال',
-      message: `مشتری ${item.customerId} (بخش ${item.segment || '—'}) در وضعیت غیرفعال است.`,
+      message: `مشتری ${item.customerId} (بخش ${
+        item.segment || '—'
+      }) در وضعیت غیرفعال است.`,
       severity: 'critical',
       isGlobal: true,
     })

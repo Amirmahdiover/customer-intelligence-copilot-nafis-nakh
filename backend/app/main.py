@@ -8,6 +8,7 @@ Every KPI here (RFM, Margin, Risk, Recommended_Action, ...) is a deterministic
 aggregation or explicit rule — no ML/statistical model is used anywhere.
 """
 from fastapi import FastAPI, HTTPException, Path, Query
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from .complaint_store import complaint_store, get_complaint_store
@@ -79,6 +80,14 @@ app = FastAPI(
     ),
     version="1.0.0",
     openapi_tags=OPENAPI_TAGS,
+)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 app.include_router(dashboard_router)

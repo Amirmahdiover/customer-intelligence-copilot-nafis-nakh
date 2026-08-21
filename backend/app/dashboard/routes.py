@@ -2,6 +2,7 @@
 from fastapi import APIRouter, HTTPException, Query
 
 from .schemas import (
+    CustomerAIActionResponse,
     DashboardOverviewResponse,
     DashboardAIExecutiveSummaryResponse,
     DashboardAIExplanationResponse,
@@ -87,5 +88,18 @@ def get_dashboard_ai_explanation(customer_id: str) -> DashboardAIExplanationResp
     """Return a cached Persian customer explanation without changing the decision."""
     try:
         return dashboard_service.get_ai_explanation(customer_id)
+    except KeyError as error:
+        raise HTTPException(status_code=404, detail="Customer was not found") from error
+
+
+@router.get(
+    "/ai/customer-action/{customer_id}",
+    response_model=CustomerAIActionResponse,
+    summary="Get an AI-narrated operational recommended action for one customer",
+)
+def get_dashboard_ai_customer_action(customer_id: str) -> CustomerAIActionResponse:
+    """Return a cached, rule-based-baseline action narrated in Persian for the operator."""
+    try:
+        return dashboard_service.get_customer_ai_action(customer_id)
     except KeyError as error:
         raise HTTPException(status_code=404, detail="Customer was not found") from error

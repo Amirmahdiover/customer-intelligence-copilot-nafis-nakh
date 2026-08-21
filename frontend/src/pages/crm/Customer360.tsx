@@ -4,6 +4,7 @@ import { ActivityTimeline } from '@/components/crm/customer360/ActivityTimeline'
 import { BehaviorPanel } from '@/components/crm/customer360/BehaviorPanel'
 import { CommandHeader } from '@/components/crm/customer360/CommandHeader'
 import { CrmSection } from '@/components/crm/customer360/CrmSection'
+import { CustomerAIAction } from '@/components/crm/customer360/CustomerAIAction'
 import { CustomerHealthPanel } from '@/components/crm/customer360/CustomerHealthPanel'
 import { FinancialSection } from '@/components/crm/customer360/FinancialSection'
 import { InsightCard } from '@/components/crm/customer360/InsightCard'
@@ -37,7 +38,10 @@ export function Customer360() {
       <div className="space-y-3">
         <div className="grid grid-cols-1 items-stretch gap-3 lg:grid-cols-[minmax(0,1fr)_minmax(0,400px)]">
           <CommandHeader customerId={id} />
-          <NextBestActionPanel customerId={id} />
+          <div className="flex flex-col gap-3">
+            <NextBestActionPanel customerId={id} />
+            <CustomerAIAction customerId={id} />
+          </div>
         </div>
 
         <SalesIntelligence customerId={id} />
