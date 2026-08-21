@@ -1,5 +1,5 @@
 import { NavLink, Outlet } from 'react-router-dom'
-import { LayoutDashboard, Users, Menu } from 'lucide-react'
+import { LayoutDashboard, Users, Menu, MessageSquareWarning } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
@@ -9,6 +9,7 @@ import { SalesAssistantChat } from '@/components/crm/layout/SalesAssistantChat'
 const NAV_ITEMS = [
   { to: '/crm', end: true, icon: LayoutDashboard, label: 'داشبورد' },
   { to: '/crm/customers', end: false, icon: Users, label: 'مشتریان' },
+  { to: '/crm/complaints', end: true, icon: MessageSquareWarning, label: 'شکایت‌ها' },
 ] as const
 
 function SidebarNav({ onNavigate, compact = false, onToggle }: { onNavigate?: () => void; compact?: boolean; onToggle?: () => void }) {
