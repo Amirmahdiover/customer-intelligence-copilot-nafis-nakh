@@ -9,11 +9,12 @@ export function getRiskPercent(customer: Customer): number {
   if (customer.status === 'high-risk') pct = Math.max(pct, 65)
   if (customer.paymentStatus === 'overdue') pct += 8
   if (customer.orderCount > 0 && customer.typicalOrderInterval > 0) {
-  const daysSince = Math.floor(
-    (new Date('2026-08-19').getTime() - new Date(customer.lastOrderDate).getTime()) /
-      86400000,
-  )
-    if (daysSince > customer.typicalOrderInterval * 1.5) pct += 10
+    const recency =
+      customer.recencyDays ??
+      (customer.daysUntilExpectedNextOrder != null
+        ? customer.typicalOrderInterval - customer.daysUntilExpectedNextOrder
+        : null)
+    if (recency != null && recency > customer.typicalOrderInterval * 1.5) pct += 10
   }
   return Math.min(pct, 95)
 }

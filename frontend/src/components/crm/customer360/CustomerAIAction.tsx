@@ -22,7 +22,7 @@ export function CustomerAIAction({ customerId }: CustomerAIActionProps) {
   const sourceLabel = data.source === 'openai' ? 'تحلیل هوشمند' : 'جمع‌بندی داده‌های موجود'
 
   return (
-    <Card className="mb-5 border-violet-200 bg-violet-50/40">
+    <Card className="border-violet-200 bg-violet-50/40 [--card-spacing:--spacing(3.5)]">
       <CardHeader>
         <CardTitle className="flex items-center gap-1.5 text-violet-800">
           <Sparkles size={16} aria-hidden="true" />

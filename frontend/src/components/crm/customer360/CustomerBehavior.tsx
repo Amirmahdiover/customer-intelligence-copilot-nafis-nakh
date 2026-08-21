@@ -2,7 +2,7 @@ import { SectionSkeleton } from '@/components/crm/shared/skeletons/CrmSkeletons'
 import { ErrorState } from '@/components/crm/shared/ErrorState'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useCustomer } from '@/hooks/crm/useCrmQueries'
-import { formatCurrency } from '@/lib/formatters'
+import { daysSince } from '@/lib/formatters'
 
 interface CustomerBehaviorProps {
   customerId: string
@@ -16,34 +16,26 @@ export function CustomerBehavior({ customerId }: CustomerBehaviorProps) {
     return <ErrorState onRetry={() => refetch()} />
   }
 
-  const daysSinceOrder = Math.floor(
-    (new Date('2026-08-19').getTime() - new Date(customer.lastOrderDate).getTime()) /
-      (1000 * 60 * 60 * 24),
+  const daysSinceOrder = Math.round(
+    customer.recencyDays ?? daysSince(customer.lastOrderDate),
   )
-
-  const maxRevenue = Math.max(...customer.revenueTrend.map((r) => r.revenue))
+  const maxRevenue = Math.max(...customer.revenueTrend.map((r) => r.revenue), 1)
 
   return (
-    <Card className="mb-5">
+    <Card>
       <CardHeader>
         <CardTitle>رفتار خرید</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="mb-2 grid grid-cols-2 gap-4 xl:grid-cols-4">
-          <div className="rounded-md bg-muted p-3">
-            <span className="mb-0.5 block text-xs text-muted-foreground">
-              تعداد سفارش
-            </span>
-            <span className="text-base font-bold text-card-foreground">
-              {customer.orderCount}
-            </span>
-          </div>
+        <div className="mb-2 grid grid-cols-2 gap-4">
           <div className="rounded-md bg-muted p-3">
             <span className="mb-0.5 block text-xs text-muted-foreground">
               فاصله معمول سفارش
             </span>
             <span className="text-base font-bold text-card-foreground">
-              {customer.typicalOrderInterval} روز
+              {customer.typicalOrderInterval > 0
+                ? `${customer.typicalOrderInterval} روز`
+                : '—'}
             </span>
           </div>
           <div className="rounded-md bg-muted p-3">
@@ -52,14 +44,6 @@ export function CustomerBehavior({ customerId }: CustomerBehaviorProps) {
             </span>
             <span className="text-base font-bold text-card-foreground">
               {daysSinceOrder} روز
-            </span>
-          </div>
-          <div className="rounded-md bg-muted p-3">
-            <span className="mb-0.5 block text-xs text-muted-foreground">
-              میانگین سفارش
-            </span>
-            <span className="text-base font-bold text-card-foreground">
-              {formatCurrency(customer.averageOrderValue)}
             </span>
           </div>
         </div>

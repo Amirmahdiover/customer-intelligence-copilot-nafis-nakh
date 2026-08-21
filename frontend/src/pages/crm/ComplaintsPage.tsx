@@ -18,7 +18,7 @@ export function ComplaintsPage() {
         <CardContent>
           <EmptyState
             title="به‌زودی"
-            description="نمای شکایت‌ها در حال توسعه است. فعلاً شکایت‌های هر مشتری در صفحه ۳۶۰ در دسترس است."
+            description="نمای شکایت‌ها در حال توسعه است و به‌زودی در این صفحه در دسترس خواهد بود."
           />
         </CardContent>
       </Card>

@@ -1,6 +1,5 @@
 import { useNavigate } from 'react-router-dom'
 import { TrendingDown, TrendingUp, Minus } from 'lucide-react'
-import { RiskBar } from '@/components/crm/dashboard/RiskBar'
 import { CustomerTableSkeleton } from '@/components/crm/shared/skeletons/CrmSkeletons'
 import { ErrorState } from '@/components/crm/shared/ErrorState'
 import { EmptyState } from '@/components/crm/shared/EmptyState'
@@ -23,14 +22,20 @@ import {
   getChurnTrend,
   getNextAction,
   getPurchaseDispersion,
-  getRiskPercent,
 } from '@/lib/customerDisplay'
 import { formatCurrency, formatRelativeDate, getInitials } from '@/lib/formatters'
 import { formatCustomerIdWithStatus } from '@/lib/customerInfo'
-import { ACCOUNT_STATUS_LABELS } from '@/lib/constants'
-import type { CustomerFilters } from '@/types/crm'
+import { ACCOUNT_STATUS_LABELS, VALUE_TIER_LABELS } from '@/lib/constants'
+import type { CustomerFilters, ValueTier } from '@/types/crm'
 import { cn } from '@/lib/utils'
 import { ValueTierBadge } from '@/components/crm/shared/ValueTierBadge'
+
+const TIER_DOT_CLASS: Record<ValueTier, string> = {
+  'شریک طلایی': 'bg-amber-500',
+  'مشتری پایدار': 'bg-emerald-600',
+  'مشتری پرچالش': 'bg-amber-500',
+  'مشتری قرمز': 'bg-destructive',
+}
 
 interface CustomerTableProps {
   filters: CustomerFilters
@@ -55,26 +60,20 @@ export function CustomerTable({ filters, onFiltersChange }: CustomerTableProps) 
   return (
     <div className="mt-2">
       <div className="mb-3.5 flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
-        <span className="font-semibold text-foreground">راهنمای ریسک:</span>
-        <span className="inline-flex items-center gap-1.5">
-          <span className="size-2 rounded-full bg-destructive" />
-          {'>'}60٪
-        </span>
-        <span className="inline-flex items-center gap-1.5">
-          <span className="size-2 rounded-full bg-amber-500" />
-          30–60٪
-        </span>
-        <span className="inline-flex items-center gap-1.5">
-          <span className="size-2 rounded-full bg-emerald-600" />
-          {'<'}30٪
-        </span>
+        <span className="font-semibold text-foreground">گروه مشتری:</span>
+        {(Object.keys(VALUE_TIER_LABELS) as ValueTier[]).map((tier) => (
+          <span key={tier} className="inline-flex items-center gap-1.5">
+            <span className={cn('size-2 rounded-full', TIER_DOT_CLASS[tier])} />
+            {VALUE_TIER_LABELS[tier]}
+          </span>
+        ))}
       </div>
 
       <Table>
         <TableHeader>
           <TableRow>
             <TableHead>مشتری</TableHead>
-            <TableHead>ریسک</TableHead>
+            <TableHead>گروه مشتری</TableHead>
             <TableHead>سهم از سبد</TableHead>
             <TableHead>پراکندگی خرید</TableHead>
             <TableHead>آخرین سفارش</TableHead>
@@ -85,7 +84,6 @@ export function CustomerTable({ filters, onFiltersChange }: CustomerTableProps) 
         </TableHeader>
         <TableBody>
           {data.data.map((customer) => {
-            const riskPct = getRiskPercent(customer)
             const basket = getBasketShare(customer)
             const dispersion = getPurchaseDispersion(customer)
             const churn = getChurnTrend(customer)
@@ -114,10 +112,6 @@ export function CustomerTable({ filters, onFiltersChange }: CustomerTableProps) 
                         {formatCustomerIdWithStatus(customer.code, customer.accountStatus)}
                       </div>
                       <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                        <ValueTierBadge
-                          score={customer.valueScore}
-                          tier={customer.valueTier}
-                        />
                         {customer.accountStatus && (
                           <Badge
                             variant="outline"
@@ -135,7 +129,15 @@ export function CustomerTable({ filters, onFiltersChange }: CustomerTableProps) 
                   </div>
                 </TableCell>
                 <TableCell>
-                  <RiskBar percent={riskPct} />
+                  {customer.valueTier || customer.valueScore != null ? (
+                    <ValueTierBadge
+                      score={customer.valueScore}
+                      tier={customer.valueTier}
+                      className="mt-0"
+                    />
+                  ) : (
+                    <span className="text-muted-foreground">—</span>
+                  )}
                 </TableCell>
                 <TableCell>
                   <div className="flex flex-col gap-1">

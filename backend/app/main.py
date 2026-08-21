@@ -7,22 +7,27 @@ DATASET.xlsx is opened read-only and never modified.
 Every KPI here (RFM, Margin, Risk, Recommended_Action, ...) is a deterministic
 aggregation or explicit rule — no ML/statistical model is used anywhere.
 """
-from fastapi import FastAPI, HTTPException, Path
+from fastapi import FastAPI, HTTPException, Path, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from backend.app.complaint_store import complaint_store, get_complaint_store
-from backend.app.crm_store import crm_store, get_crm_store
-from backend.app.customer_header_store import customer_header_store, get_customer_header_store
-from backend.app.dashboard.routes import router as dashboard_router
-from backend.app.chat_routes import router as chat_router
-from backend.app.data_loader import SNAPSHOT_DATE, store
-from backend.app.financial_store import financial_store, get_financial_store
-from backend.app.value_store import customer_value_store, get_customer_value_store
-from backend.app.churn_model import ChurnFeaturesNotFound, ChurnModelUnavailable, predict_churn
-from backend.app.offer_model import OfferModelUnavailable, predict_best_offer
-from backend.app.rules import risk_breakdown
-from backend.app.schemas import (
+from .complaint_store import complaint_store, get_complaint_store
+from .crm_store import crm_store, get_crm_store
+from .customer_header_store import customer_header_store, get_customer_header_store
+from .dashboard.routes import router as dashboard_router
+from .chat_routes import router as chat_router
+from .data_loader import SNAPSHOT_DATE, store
+from .financial_store import financial_store, get_financial_store
+from .value_store import customer_value_store, get_customer_value_store
+from .churn_model import ChurnFeaturesNotFound, ChurnModelUnavailable, predict_churn
+from .negotiation_model import (
+    NegotiationModelUnavailable,
+    NegotiationProfileNotFound,
+    predict_negotiation_score,
+)
+from .offer_model import OfferModelUnavailable, predict_best_offer
+from .rules import risk_breakdown
+from .schemas import (
     ActionResponse,
     BestOfferResponse,
     ChurnResponse,
@@ -37,6 +42,7 @@ from backend.app.schemas import (
     DelayCostSummary,
     ErrorResponse,
     KPIResponse,
+    NegotiationScoreResponse,
     NotDueInvoicesResponse,
     NotDueInvoicesSummary,
     OfferRecommendation,
@@ -58,6 +64,7 @@ OPENAPI_TAGS = [
     {"name": "Recommended Actions", "description": "Rule-based next-best-action per customer."},
     {"name": "Offers", "description": "ML best-offer prediction (type, discount, accept probability) from historical offers."},
     {"name": "Churn", "description": "ML churn probability (90-day window) from precomputed behavioral features."},
+    {"name": "Negotiation", "description": "Negotiation success score from retention/loyalty models plus collection and cash scorecards."},
     {"name": "Value", "description": "0-100 customer value score and four-tier label (شریک طلایی / پایدار / پرچالش / قرمز)."},
 ]
 
@@ -467,5 +474,54 @@ def get_customer_churn(customer_id: str = CUSTOMER_ID_PATH):
         churn_probability=result["churn_probability"],
         churn_prediction=result["churn_prediction"],
         risk_level=result["risk_level"],
+        snapshot_date=result.get("snapshot_date"),
+    )
+
+
+@app.get(
+    "/customers/{customer_id}/negotiation-score",
+    response_model=NegotiationScoreResponse,
+    responses={
+        **NOT_FOUND_RESPONSES,
+        503: {"model": ErrorResponse, "description": "Negotiation model or profile store not available"},
+    },
+    tags=["Negotiation"],
+    summary="Score negotiation success for a customer",
+    description=(
+        "Weighted 0-100 score from four pillars: collection health (rule scorecard), "
+        "retention (Logistic Regression), loyalty/wallet share (Ridge), and cash (rule scorecard). "
+        "Profiles are the 2022-03-01 snapshot. Optional query weights default to 0.25 each."
+    ),
+)
+def get_customer_negotiation_score(
+    customer_id: str = CUSTOMER_ID_PATH,
+    w_collection: float = Query(0.25, ge=0, le=1),
+    w_retention: float = Query(0.25, ge=0, le=1),
+    w_loyalty: float = Query(0.25, ge=0, le=1),
+    w_cash: float = Query(0.25, ge=0, le=1),
+):
+    _get_customer_or_404(customer_id)
+    try:
+        result = predict_negotiation_score(
+            customer_id,
+            w_collection=w_collection,
+            w_retention=w_retention,
+            w_loyalty=w_loyalty,
+            w_cash=w_cash,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except NegotiationModelUnavailable as exc:
+        return JSONResponse(status_code=503, content={"detail": str(exc)})
+    except NegotiationProfileNotFound as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return NegotiationScoreResponse(
+        Customer_ID=customer_id,
+        method="negotiation_score",
+        negotiation_score=result["negotiation_score"],
+        recommendation=result["recommendation"],
+        pillars=result["pillars"],
+        key_drivers=result["key_drivers"],
+        warnings=result["warnings"],
         snapshot_date=result.get("snapshot_date"),
     )

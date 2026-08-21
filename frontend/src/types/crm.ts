@@ -75,6 +75,11 @@ export interface Customer {
   averageOrderValue: number
   lastOrderDate: string
   typicalOrderInterval: number
+  /** Days since last order as of the analytics snapshot. */
+  recencyDays?: number | null
+  /** Negative means overdue vs this customer's own order pattern as of the snapshot. */
+  daysUntilExpectedNextOrder?: number | null
+  expectedNextOrderDate?: string | null
   paymentStatus: PaymentStatus
   orderStatus: OrderStatus
   risk: CustomerRisk
@@ -84,6 +89,12 @@ export interface Customer {
   lastActivityDate: string
   valueScore?: number | null
   valueTier?: ValueTier | null
+  /** Wallet share (Nafis purchase / estimated total purchase) for the latest month on record. */
+  walletSharePct?: number | null
+  /** Mean wallet share across all months on record. */
+  walletShareAvgPct?: number | null
+  /** The YYYY-MM the latest wallet share belongs to. */
+  walletShareAsOfMonth?: string | null
 }
 
 export interface Order {
@@ -203,6 +214,30 @@ export interface CustomerChurn {
   snapshotDate: string | null
 }
 
+export type NegotiationPillarKey = 'collection' | 'retention' | 'loyalty' | 'cash'
+export type NegotiationPillarMethod = 'ml_model' | 'rule_based_scorecard'
+export type NegotiationConfidence = 'high' | 'medium' | 'low'
+
+export interface NegotiationPillar {
+  score: number
+  weight: number
+  contribution: number
+  method: NegotiationPillarMethod
+  note: string | null
+  confidence: NegotiationConfidence
+}
+
+export interface NegotiationScore {
+  customerId: string
+  method: 'negotiation_score'
+  negotiationScore: number
+  recommendation: string
+  pillars: Record<NegotiationPillarKey, NegotiationPillar>
+  keyDrivers: string[]
+  warnings: string[]
+  snapshotDate: string | null
+}
+
 export interface CrmOverview {
   totalCustomers: number
   newCustomersThisMonth: number
@@ -216,6 +251,7 @@ export interface CustomerFilters {
   search?: string
   status?: CustomerStatus | 'all'
   risk?: RiskLevel | 'all'
+  valueTier?: ValueTier | 'all'
   paymentStatus?: PaymentStatus | 'all'
   orderStatus?: OrderStatus | 'all'
   sortField?: SortField

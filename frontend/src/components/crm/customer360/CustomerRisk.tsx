@@ -24,12 +24,12 @@ export function CustomerRisk({ customerId }: CustomerRiskProps) {
   const { risk } = customer
 
   return (
-    <Card className="mb-5">
+    <Card>
       <CardHeader>
         <CardTitle>تحلیل ریسک</CardTitle>
       </CardHeader>
       <CardContent>
-        <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <div className="mb-4 grid grid-cols-1 gap-4 sm:grid-cols-3 xl:grid-cols-1">
           <div className="rounded-md border bg-muted/50 p-3.5">
             <div className="mb-2 flex items-center justify-between text-sm font-semibold text-card-foreground">
               <span>ریسک مالی</span>

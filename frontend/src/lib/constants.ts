@@ -11,6 +11,9 @@ import type {
   ValueTier,
 } from '@/types/crm'
 
+/** Analytics snapshot used as "today" for recency, reorder, and relative dates. */
+export const SNAPSHOT_DATE = '2022-06-30'
+
 export const CUSTOMER_STATUS_LABELS: Record<CustomerStatus, string> = {
   healthy: 'سالم',
   watch: 'نیازمند توجه',

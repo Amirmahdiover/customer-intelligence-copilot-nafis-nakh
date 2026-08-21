@@ -69,6 +69,30 @@ export interface RiskOpportunityMapResponse {
   customers: RiskOpportunityPoint[]
 }
 
+export type StrategicMatrixQuadrantKey =
+  | 'golden_loyal'
+  | 'growth_potential'
+  | 'high_risk_moneymaker'
+  | 'marginal'
+
+export interface StrategicMatrixQuadrant {
+  key: StrategicMatrixQuadrantKey
+  label: string
+  action: string
+  count: number
+}
+
+export interface StrategicMatrixResponse {
+  snapshot_date: string
+  method: 'rule_based'
+  weighting_note: string
+  thresholds: {
+    economic_median: number
+    health_median: number
+  }
+  quadrants: StrategicMatrixQuadrant[]
+}
+
 export interface ExecutiveSummaryResponse {
   snapshot_date: string
   method: 'rule_based'

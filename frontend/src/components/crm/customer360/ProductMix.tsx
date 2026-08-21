@@ -17,7 +17,7 @@ export function ProductMix({ customerId }: ProductMixProps) {
   }
 
   return (
-    <Card className="mb-5">
+    <Card>
       <CardHeader>
         <CardTitle>محصولات محبوب</CardTitle>
       </CardHeader>

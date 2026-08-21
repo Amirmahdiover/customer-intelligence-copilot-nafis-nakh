@@ -1,7 +1,7 @@
 """Read-only API routes for the isolated Executive Dashboard module."""
 from fastapi import APIRouter, HTTPException, Query
 
-from backend.app.dashboard.schemas import (
+from .schemas import (
     CustomerAIActionResponse,
     DashboardOverviewResponse,
     DashboardAIExecutiveSummaryResponse,
@@ -9,8 +9,9 @@ from backend.app.dashboard.schemas import (
     DashboardPriorityCustomer,
     ExecutiveSummaryResponse,
     RiskOpportunityMapResponse,
+    StrategicMatrixResponse,
 )
-from backend.app.dashboard.service import dashboard_service
+from .service import dashboard_service
 
 
 router = APIRouter(prefix="/dashboard", tags=["Dashboard"])
@@ -46,6 +47,16 @@ def get_dashboard_priorities(
 def get_risk_opportunity_map() -> RiskOpportunityMapResponse:
     """Return rule-based customer positions for a risk/opportunity visualization."""
     return dashboard_service.get_risk_opportunity_map()
+
+
+@router.get(
+    "/strategic-matrix",
+    response_model=StrategicMatrixResponse,
+    summary="Get strategic customer matrix quadrant counts",
+)
+def get_strategic_matrix() -> StrategicMatrixResponse:
+    """Return economic-value × relationship-health quadrant counts for the portfolio."""
+    return dashboard_service.get_strategic_matrix()
 
 
 @router.get(

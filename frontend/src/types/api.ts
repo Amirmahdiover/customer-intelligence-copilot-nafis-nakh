@@ -184,6 +184,29 @@ export interface ApiChurnResponse {
   snapshot_date?: string | null
 }
 
+export type ApiNegotiationPillarMethod = 'ml_model' | 'rule_based_scorecard'
+export type ApiNegotiationConfidence = 'high' | 'medium' | 'low'
+
+export interface ApiNegotiationPillar {
+  score: number
+  weight: number
+  contribution: number
+  method: ApiNegotiationPillarMethod
+  note?: string | null
+  confidence: ApiNegotiationConfidence
+}
+
+export interface ApiNegotiationScoreResponse {
+  Customer_ID: string
+  method: 'negotiation_score'
+  negotiation_score: number
+  recommendation: string
+  pillars: Record<string, ApiNegotiationPillar>
+  key_drivers: string[]
+  warnings: string[]
+  snapshot_date?: string | null
+}
+
 export interface ApiCrmLatestResponse {
   customer_id: string
   next_action?: string | null

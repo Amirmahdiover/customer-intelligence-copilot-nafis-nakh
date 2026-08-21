@@ -45,7 +45,7 @@ export function CrmSection({ customerId }: CrmSectionProps) {
   const hasCrm = Boolean(nextAction || latest?.summaryText)
 
   return (
-    <Card className="mb-5">
+    <Card>
       <CardHeader>
         <CardTitle>CRM</CardTitle>
       </CardHeader>

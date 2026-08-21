@@ -3,8 +3,8 @@ from __future__ import annotations
 
 from typing import Any
 
-from backend.app.dashboard.logic.opportunity import ACTIVE_CUSTOMER_STATUS
-from backend.app.dashboard.logic.risk import HIGH_RISK_LEVELS
+from .opportunity import ACTIVE_CUSTOMER_STATUS
+from .risk import HIGH_RISK_LEVELS
 
 
 CRM_SALES_URGENCIES = {"فوری", "مهم"}

@@ -28,7 +28,7 @@ export function InsightCard({ customerId }: InsightCardProps) {
 
   if (!insights || insights.length === 0) {
     return (
-      <Card className="mb-5">
+      <Card className="h-full">
         <CardHeader>
           <CardTitle>بینش‌ها</CardTitle>
         </CardHeader>
@@ -40,7 +40,7 @@ export function InsightCard({ customerId }: InsightCardProps) {
   }
 
   return (
-    <Card className="mb-5">
+    <Card className="h-full">
       <CardHeader>
         <CardTitle>بینش‌ها</CardTitle>
       </CardHeader>

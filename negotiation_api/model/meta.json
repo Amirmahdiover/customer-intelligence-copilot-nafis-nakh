@@ -1,0 +1,108 @@
+{
+  "retention": {
+    "features": [
+      "recency_days",
+      "tenure_days",
+      "relationship_days",
+      "freq_90d",
+      "freq_180d",
+      "freq_365d",
+      "freq_trend",
+      "monetary_90d",
+      "monetary_365d",
+      "avg_txn_size",
+      "gap_mean_days",
+      "gap_std_days",
+      "nunique_product_365d",
+      "nunique_group_365d",
+      "complaint_count_365d",
+      "critical_complaint_count",
+      "unresolved_complaints",
+      "crm_quality_issues",
+      "crm_interaction_count",
+      "dev_request_count",
+      "return_rate",
+      "avg_delay_days",
+      "bounced_check_rate",
+      "segment_A",
+      "segment_B"
+    ],
+    "metrics": {
+      "auc": 0.8823,
+      "precision": 0.6069,
+      "recall": 0.839,
+      "f1": 0.7044,
+      "n_train": 7715,
+      "n_test": 2939,
+      "positive_rate": 0.4765
+    },
+    "type": "LogisticRegression",
+    "method": "ml_model"
+  },
+  "loyalty": {
+    "features": [
+      "wallet_share",
+      "wallet_share_trend",
+      "competitor_diversity",
+      "nunique_product_365d",
+      "nunique_group_365d",
+      "dev_request_count",
+      "dev_approved_ratio",
+      "dev_rejected_ratio",
+      "crm_sample_requests",
+      "crm_interaction_count",
+      "freq_365d",
+      "monetary_365d",
+      "avg_txn_size",
+      "relationship_days",
+      "tenure_days",
+      "segment_A",
+      "segment_B",
+      "has_wallet_data"
+    ],
+    "metrics": {
+      "r2": 0.3983,
+      "mae": 0.086,
+      "n_train": 4451,
+      "n_test": 1191,
+      "target_mean": 0.119
+    },
+    "type": "Ridge",
+    "method": "ml_model"
+  },
+  "collection": {
+    "method": "rule_based_scorecard",
+    "reason": "AUC=0.537 در تست ML - دادهٔ پرداخت قابل پیش‌بینی نبود",
+    "features": [
+      "avg_delay_days",
+      "on_time_ratio",
+      "bounced_check_rate",
+      "max_delay_days",
+      "crm_collection_pressure"
+    ]
+  },
+  "cash": {
+    "method": "rule_based_scorecard",
+    "features": [
+      "cash_ratio_365d",
+      "cash_ratio_trend",
+      "avg_margin_pct",
+      "avg_txn_size"
+    ]
+  },
+  "cash_stats": {
+    "cash_ratio_p10": 0.09375,
+    "cash_ratio_p90": 1.0,
+    "margin_pct_p10": 0.035590605348398176,
+    "margin_pct_p90": 0.1331291659160511,
+    "avg_txn_p10": 0.0,
+    "avg_txn_p90": 182581.72464935074
+  },
+  "dataset_rows": 10654,
+  "default_weights": {
+    "collection": 0.25,
+    "retention": 0.25,
+    "loyalty": 0.25,
+    "cash": 0.25
+  }
+}

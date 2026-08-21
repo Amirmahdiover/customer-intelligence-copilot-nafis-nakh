@@ -14,6 +14,7 @@ import {
   ORDER_STATUS_LABELS,
   PAYMENT_STATUS_LABELS,
   RISK_LABELS,
+  VALUE_TIER_LABELS,
 } from '@/lib/constants'
 
 interface SearchFiltersProps {
@@ -30,6 +31,7 @@ export function SearchFilters({ filters, onChange }: SearchFiltersProps) {
     filters.search ||
     (filters.status && filters.status !== 'all') ||
     (filters.risk && filters.risk !== 'all') ||
+    (filters.valueTier && filters.valueTier !== 'all') ||
     (filters.paymentStatus && filters.paymentStatus !== 'all') ||
     (filters.orderStatus && filters.orderStatus !== 'all')
 
@@ -90,6 +92,25 @@ export function SearchFilters({ filters, onChange }: SearchFiltersProps) {
           <SelectContent>
             <SelectItem value="all">ریسک</SelectItem>
             {Object.entries(RISK_LABELS).map(([k, v]) => (
+              <SelectItem key={k} value={k}>
+                {v}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select
+          value={filters.valueTier ?? 'all'}
+          onValueChange={(value) =>
+            update({ valueTier: value as CustomerFilters['valueTier'] })
+          }
+        >
+          <SelectTrigger className="w-[170px]">
+            <SelectValue placeholder="گروه مشتری" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">گروه مشتری</SelectItem>
+            {Object.entries(VALUE_TIER_LABELS).map(([k, v]) => (
               <SelectItem key={k} value={k}>
                 {v}
               </SelectItem>

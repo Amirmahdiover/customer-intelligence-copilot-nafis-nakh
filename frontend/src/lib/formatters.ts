@@ -1,3 +1,5 @@
+import { SNAPSHOT_DATE } from '@/lib/constants'
+
 const MONTHS_FA = [
   'فروردین',
   'اردیبهشت',
@@ -32,7 +34,7 @@ export function formatNumber(value: number): string {
 
 export function formatRelativeDate(dateStr: string): string {
   const date = new Date(dateStr)
-  const now = new Date('2026-08-19')
+  const now = new Date(SNAPSHOT_DATE)
   const diffMs = now.getTime() - date.getTime()
   const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
 
@@ -45,7 +47,7 @@ export function formatRelativeDate(dateStr: string): string {
 
 export function daysSince(dateStr: string): number {
   const date = new Date(dateStr)
-  const now = new Date('2026-08-19')
+  const now = new Date(SNAPSHOT_DATE)
   return Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60 * 24))
 }
 
